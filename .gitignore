@@ -3,3 +3,11 @@ venv/
 
 #files
 Gravidade-Social-Plano-do-Projeto.pdf
+
+#data
+data/*
+!data/README.md
+!data/*/
+data/*/*
+!data/*/.gitkeep
+*.duckdb
