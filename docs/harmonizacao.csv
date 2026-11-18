@@ -1,1 +1,77 @@
-conceito,2020,2021,2022,2023,2024,2025,tabela_2024_2025,observacao
+conceito,2020,2021,2022,2023,2024,2025,tabela_2024_2025,observacao,usar
+numero_inscricao,NU_INSCRICAO,,,,,,,chave do participante,sim
+ano,NU_ANO,,,,,,,,sim
+faixa_etaria,TP_FAIXA_ETARIA,,,,,,,código de categoria,sim
+sexo,TP_SEXO,,,,,,,,sim
+estado_civil,TP_ESTADO_CIVIL,,,,,,,,não
+cor_raca,TP_COR_RACA,,,,,,,,sim
+nacionalidade,TP_NACIONALIDADE,,,,,,,,não
+situacao_conclusao,TP_ST_CONCLUSAO,,,,,,,código de categoria; define a população de concluintes,sim
+ano_conclusao,TP_ANO_CONCLUIU,,,,,,,código de categoria e não o ano em si,não
+tipo_escola,TP_ESCOLA,,,,,,,,sim
+tipo_ensino,TP_ENSINO,,,,,,,,não
+treineiro,IN_TREINEIRO,,,,,,,filtro para excluir treineiros,sim
+codigo_municipio_escola,CO_MUNICIPIO_ESC,,,,,,,verificar taxa de preenchimento,sim
+nome_municipio_escola,NO_MUNICIPIO_ESC,,,,,,,,sim
+codigo_estado_escola,CO_UF_ESC,,,,,,,,não
+sigla_estado_escola,SG_UF_ESC,,,,,,,,sim
+tipo_adm_escola,TP_DEPENDENCIA_ADM_ESC,,,,,,,rede: federal/estadual/municipal/privada,sim
+tipo_localizacao_escola,TP_LOCALIZACAO_ESC,,,,,,,urbana ou rural,sim
+tipo_situacao_escola,TP_SITUACAO_FUNC_ESC,,,,,,,,não
+codigo_municipio_prova,CO_MUNICIPIO_PROVA,,,,,,,alternativa quando o município da escola está vazio,sim
+nome_municipio_prova,NO_MUNICIPIO_PROVA,,,,,,,,sim
+codigo_estado_prova,CO_UF_PROVA,,,,,,,,não
+sigla_estado_prova,SG_UF_PROVA,,,,,,,filtro de MG na ingestão,sim
+presenca_cn,TP_PRESENCA_CN,,,,,,,2º dia,sim
+presenca_ch,TP_PRESENCA_CH,,,,,,,1º dia; base para medir abstenção no 2º dia,sim
+presenca_lc,TP_PRESENCA_LC,,,,,,,1º dia; base para medir abstenção no 2º dia,sim
+presenca_mt,TP_PRESENCA_MT,,,,,,,2º dia,não
+codigo_prova_cn,CO_PROVA_CN,,,,,,,identifica a cor da prova para decodificar respostas,sim
+codigo_prova_ch,CO_PROVA_CH,,,,,,,,não
+codigo_prova_lc,CO_PROVA_LC,,,,,,,,não
+codigo_prova_mt,CO_PROVA_MT,,,,,,,,não
+nota_cn,NU_NOTA_CN,,,,,,,variável resposta principal,sim
+nota_ch,NU_NOTA_CH,,,,,,,,não
+nota_lc,NU_NOTA_LC,,,,,,,,não
+nota_mt,NU_NOTA_MT,,,,,,,,não
+vetor_respostas_cn,TX_RESPOSTAS_CN,,,,,,,letras marcadas pelo participante,sim
+vetor_respostas_ch,TX_RESPOSTAS_CH,,,,,,,,não
+vetor_respostas_lc,TX_RESPOSTAS_LC,,,,,,,,não
+vetor_respostas_mt,TX_RESPOSTAS_MT,,,,,,,,não
+tipo_lingua_estrangeira,TP_LINGUA,,,,,,,,não
+vetor_gabarito_cn,TX_GABARITO_CN,,,,,,,gabarito na ordem da prova do participante,sim
+vetor_gabarito_ch,TX_GABARITO_CH,,,,,,,,não
+vetor_gabarito_lc,TX_GABARITO_LC,,,,,,,,não
+vetor_gabarito_mt,TX_GABARITO_MT,,,,,,,,não
+status_redacao,TP_STATUS_REDACAO,,,,,,,,não
+nota_redacao_c1,NU_NOTA_COMP1,,,,,,,,não
+nota_redacao_c2,NU_NOTA_COMP2,,,,,,,,não
+nota_redacao_c3,NU_NOTA_COMP3,,,,,,,,não
+nota_redacao_c4,NU_NOTA_COMP4,,,,,,,,não
+nota_redacao_c5,NU_NOTA_COMP5,,,,,,,,não
+nota_redacao,NU_NOTA_REDACAO,,,,,,,,não
+escolaridade_pai,Q001,,,,,,,,sim
+escolaridade_mae,Q002,,,,,,,,sim
+grupo_ocupacao_pai,Q003,,,,,,,,sim
+grupo_ocupacao_mae,Q004,,,,,,,,sim
+qtd_moradores,Q005,,,,,,,usada para renda per capita,sim
+faixa_renda,Q006,,,,,,,conferir se as faixas mudam entre anos,sim
+frequencia_empregado_domestico,Q007,,,,,,,item de índice de bens,sim
+qtd_banheiros,Q008,,,,,,,item de índice de bens,sim
+qtd_quartos,Q009,,,,,,,,não
+qtd_carros,Q010,,,,,,,item de índice de bens,sim
+qtd_motocicletas,Q011,,,,,,,item de índice de bens,sim
+qtd_geladeiras,Q012,,,,,,,item de índice de bens,sim
+qtd_freezers,Q013,,,,,,,item de índice de bens,sim
+qtd_lavadoras_roupas,Q014,,,,,,,item de índice de bens,sim
+qtd_secadoras,Q015,,,,,,,item de índice de bens,sim
+qtd_microondas,Q016,,,,,,,item de índice de bens,sim
+qtd_lavadoras_loucas,Q017,,,,,,,item de índice de bens,sim
+qtd_aspiradores,Q018,,,,,,,,não
+qtd_televisores,Q019,,,,,,,,não
+tem_aparelho_dvd,Q020,,,,,,,,não
+tem_tv_assinatura,Q021,,,,,,,,não
+qtd_celulares,Q022,,,,,,,,não
+tem_telefone_fixo,Q023,,,,,,,,não
+qtd_computadores,Q024,,,,,,,acesso a recursos de estudo,sim
+tem_internet,Q025,,,,,,,acesso a recursos de estudo,sim
