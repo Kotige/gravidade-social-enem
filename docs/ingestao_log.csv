@@ -1,0 +1,15 @@
+ano,tabela,fonte_arquivo,linhas_lidas,linhas_gravadas,v1_colunas,v3_notas_fora_intervalo,v3_notas,v4_chave,v4_duplicatas,v4_unicidade,processado_em
+2020,base_unica,MICRODADOS_ENEM_2020.csv,5783109,577950,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:00:15
+2020,itens,ITENS_PROVA_2020.csv,4415,1035,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:00:16
+2021,base_unica,MICRODADOS_ENEM_2021.csv,3389832,328656,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:01:35
+2021,itens,ITENS_PROVA_2021.csv,5365,1305,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:01:35
+2022,base_unica,MICRODADOS_ENEM_2022.csv,3476105,310604,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:03:03
+2022,itens,ITENS_PROVA_2022.csv,5365,1305,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:03:03
+2023,base_unica,MICRODADOS_ENEM_2023.csv,3933955,359286,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:04:29
+2023,itens,ITENS_PROVA_2023.csv,5550,1350,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:04:29
+2024,itens,ITENS_PROVA_2024.csv,5550,1350,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:06:29
+2024,participantes,PARTICIPANTES_2024.csv,4332944,393824,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:04:56
+2024,resultados,RESULTADOS_2024.csv,4332944,395592,ok,0,ok,numero_sequencial,0,ok,2026-11-18T20:06:28
+2025,itens,ITENS_PROVA_2025.csv,6105,1485,ok,0,ok,codigo_prova+posicao_item,0,ok,2026-11-18T20:07:48
+2025,participantes,PARTICIPANTES_2025.csv,4810772,464937,ok,0,ok,numero_inscricao,0,ok,2026-11-18T20:06:45
+2025,resultados,RESULTADOS_2025.csv,4810772,467362,ok,0,ok,numero_sequencial,0,ok,2026-11-18T20:07:47
