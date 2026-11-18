@@ -3,10 +3,11 @@
 Decisões de projeto do Gravidade Social, em ordem cronológica.
 Cada decisão traz o contexto, a escolha e as consequências.
 
-| Nº   | Data       | Decisão                          | Status |
-| ---- | ---------- | -------------------------------- | ------ |
-| D001 | 2026-11-18 | Convenção de nomes das variáveis | Aceita |
-| D002 | 2026-11-18 | Escopo da análise por período    | Aceita |
+| Nº   | Data       | Decisão                               | Status |
+| ---- | ---------- | ------------------------------------- | ------ |
+| D001 | 2026-11-18 | Convenção de nomes das variáveis      | Aceita |
+| D002 | 2026-11-18 | Escopo da análise por período         | Aceita |
+| D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -126,3 +127,48 @@ Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA`
 - **`tipo_adm_escola` não substitui `TP_ESCOLA` um para um.** A primeira vem do cadastro da escola e só existe para quem tem escola preenchida; a segunda era declarada pelo participante.
 - **Variáveis do questionário mantêm a escala de 2020–2023.** Itens que viraram sim/não em 2024 (freezer, lavadora, micro-ondas) seguem como `qtd_` e são usados em 2024–2025 só para descrição.
 - O mapeamento e essas ressalvas ficam registrados em `docs/harmonizacao.csv`.
+
+## D003 — Renomeação e filtro de MG na ingestão
+
+**Data:** 2026-11-18
+
+**Status:** Aceita
+
+### Contexto
+
+A ingestão converte os CSVs brutos do INEP em Parquet (ver
+`docs/spec-ingestao.md`). Duas escolhas afetam todas as etapas
+seguintes: em que momento os nomes do INEP viram os nomes
+padronizados da D001, e quais participantes contam como "de Minas
+Gerais".
+
+Sobre os nomes: os códigos do questionário mudam de posição em 2024.
+`Q006`, por exemplo, é a renda familiar até 2023 e a renda própria do
+participante a partir de 2024. Com os nomes originais, o mesmo código
+teria significados diferentes conforme o ano.
+
+Sobre o filtro: cada participante tem duas UFs, a da prova
+(`SG_UF_PROVA`) e a da escola (`SG_UF_ESC`). A da escola só existe
+para quem tem escola preenchida (ver D002), e a tabela
+`PARTICIPANTES` de 2024–2025 só tem a da prova.
+
+### Decisão
+
+- **Renomear na ingestão.** Os Parquets já saem com os nomes padronizados da D001.
+- **A harmonização é a fonte da verdade.** O script lê `docs/harmonizacao.csv` (linhas com `usar = sim`) para saber quais colunas ler em cada ano e como renomeá-las. Nenhuma lista de colunas fica escrita no código.
+- **Filtro de MG amplo:** entram os participantes com a prova **ou** a escola em MG. Na tabela `PARTICIPANTES` de 2024–2025, entra quem fez a prova em MG.
+- **Qual UF define cada análise** é decidido na Etapa 2, sobre esse conjunto amplo.
+
+### Alternativas consideradas
+
+- **Manter os nomes do INEP nos Parquets e renomear na Etapa 2:** descartada porque o mesmo código teria significados diferentes em anos diferentes dentro dos arquivos processados.
+- **Lista de colunas escrita no script:** descartada porque duplicaria a harmonização, e as duas poderiam divergir.
+- **Filtrar só pela UF da prova:** descartada porque perderia estudantes de escolas mineiras que fizeram a prova em outro estado.
+- **Filtrar só pela UF da escola:** descartada porque perderia os concluintes sem escola preenchida (28–35% em 2020–2023), que fazem parte da população da análise individual (D002).
+
+### Consequências
+
+- Qualquer mudança de variável (incluir, excluir, corrigir um nome) é feita na `harmonizacao.csv`; depois basta rodar a ingestão de novo.
+- Se uma coluna prevista na harmonização não existir no CSV de algum ano, a ingestão para com erro. A divergência precisa ser corrigida na harmonização antes de seguir.
+- Os Parquets não guardam os nomes originais do INEP. Para rastrear uma coluna até a fonte, consulta-se a harmonização.
+- Os Parquets contêm um conjunto maior que o de qualquer análise isolada, e a Etapa 2 sempre precisa aplicar o recorte de UF.
