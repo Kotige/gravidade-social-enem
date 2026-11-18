@@ -1,77 +1,80 @@
 conceito,2020,2021,2022,2023,2024,2025,tabela_2024_2025,observacao,usar
-numero_inscricao,NU_INSCRICAO,,,,,,,chave do participante,sim
-ano,NU_ANO,,,,,,,,sim
-faixa_etaria,TP_FAIXA_ETARIA,,,,,,,código de categoria,sim
-sexo,TP_SEXO,,,,,,,,sim
-estado_civil,TP_ESTADO_CIVIL,,,,,,,,não
-cor_raca,TP_COR_RACA,,,,,,,,sim
-nacionalidade,TP_NACIONALIDADE,,,,,,,,não
-situacao_conclusao,TP_ST_CONCLUSAO,,,,,,,código de categoria; define a população de concluintes,sim
-ano_conclusao,TP_ANO_CONCLUIU,,,,,,,código de categoria e não o ano em si,não
-tipo_escola,TP_ESCOLA,,,,,,,,sim
-tipo_ensino,TP_ENSINO,,,,,,,,não
-treineiro,IN_TREINEIRO,,,,,,,filtro para excluir treineiros,sim
-codigo_municipio_escola,CO_MUNICIPIO_ESC,,,,,,,verificar taxa de preenchimento,sim
-nome_municipio_escola,NO_MUNICIPIO_ESC,,,,,,,,sim
-codigo_estado_escola,CO_UF_ESC,,,,,,,,não
-sigla_estado_escola,SG_UF_ESC,,,,,,,,sim
-tipo_adm_escola,TP_DEPENDENCIA_ADM_ESC,,,,,,,rede: federal/estadual/municipal/privada,sim
-tipo_localizacao_escola,TP_LOCALIZACAO_ESC,,,,,,,urbana ou rural,sim
-tipo_situacao_escola,TP_SITUACAO_FUNC_ESC,,,,,,,,não
-codigo_municipio_prova,CO_MUNICIPIO_PROVA,,,,,,,alternativa quando o município da escola está vazio,sim
-nome_municipio_prova,NO_MUNICIPIO_PROVA,,,,,,,,sim
-codigo_estado_prova,CO_UF_PROVA,,,,,,,,não
-sigla_estado_prova,SG_UF_PROVA,,,,,,,filtro de MG na ingestão,sim
-presenca_cn,TP_PRESENCA_CN,,,,,,,2º dia,sim
-presenca_ch,TP_PRESENCA_CH,,,,,,,1º dia; base para medir abstenção no 2º dia,sim
-presenca_lc,TP_PRESENCA_LC,,,,,,,1º dia; base para medir abstenção no 2º dia,sim
-presenca_mt,TP_PRESENCA_MT,,,,,,,2º dia,não
-codigo_prova_cn,CO_PROVA_CN,,,,,,,identifica a cor da prova para decodificar respostas,sim
-codigo_prova_ch,CO_PROVA_CH,,,,,,,,não
-codigo_prova_lc,CO_PROVA_LC,,,,,,,,não
-codigo_prova_mt,CO_PROVA_MT,,,,,,,,não
-nota_cn,NU_NOTA_CN,,,,,,,variável resposta principal,sim
-nota_ch,NU_NOTA_CH,,,,,,,,não
-nota_lc,NU_NOTA_LC,,,,,,,,não
-nota_mt,NU_NOTA_MT,,,,,,,,não
-vetor_respostas_cn,TX_RESPOSTAS_CN,,,,,,,letras marcadas pelo participante,sim
-vetor_respostas_ch,TX_RESPOSTAS_CH,,,,,,,,não
-vetor_respostas_lc,TX_RESPOSTAS_LC,,,,,,,,não
-vetor_respostas_mt,TX_RESPOSTAS_MT,,,,,,,,não
-tipo_lingua_estrangeira,TP_LINGUA,,,,,,,,não
-vetor_gabarito_cn,TX_GABARITO_CN,,,,,,,gabarito na ordem da prova do participante,sim
-vetor_gabarito_ch,TX_GABARITO_CH,,,,,,,,não
-vetor_gabarito_lc,TX_GABARITO_LC,,,,,,,,não
-vetor_gabarito_mt,TX_GABARITO_MT,,,,,,,,não
-status_redacao,TP_STATUS_REDACAO,,,,,,,,não
-nota_redacao_c1,NU_NOTA_COMP1,,,,,,,,não
-nota_redacao_c2,NU_NOTA_COMP2,,,,,,,,não
-nota_redacao_c3,NU_NOTA_COMP3,,,,,,,,não
-nota_redacao_c4,NU_NOTA_COMP4,,,,,,,,não
-nota_redacao_c5,NU_NOTA_COMP5,,,,,,,,não
-nota_redacao,NU_NOTA_REDACAO,,,,,,,,não
-escolaridade_pai,Q001,,,,,,,,sim
-escolaridade_mae,Q002,,,,,,,,sim
-grupo_ocupacao_pai,Q003,,,,,,,,sim
-grupo_ocupacao_mae,Q004,,,,,,,,sim
-qtd_moradores,Q005,,,,,,,usada para renda per capita,sim
-faixa_renda,Q006,,,,,,,conferir se as faixas mudam entre anos,sim
-frequencia_empregado_domestico,Q007,,,,,,,item de índice de bens,sim
-qtd_banheiros,Q008,,,,,,,item de índice de bens,sim
-qtd_quartos,Q009,,,,,,,,não
-qtd_carros,Q010,,,,,,,item de índice de bens,sim
-qtd_motocicletas,Q011,,,,,,,item de índice de bens,sim
-qtd_geladeiras,Q012,,,,,,,item de índice de bens,sim
-qtd_freezers,Q013,,,,,,,item de índice de bens,sim
-qtd_lavadoras_roupas,Q014,,,,,,,item de índice de bens,sim
-qtd_secadoras,Q015,,,,,,,item de índice de bens,sim
-qtd_microondas,Q016,,,,,,,item de índice de bens,sim
-qtd_lavadoras_loucas,Q017,,,,,,,item de índice de bens,sim
-qtd_aspiradores,Q018,,,,,,,,não
-qtd_televisores,Q019,,,,,,,,não
-tem_aparelho_dvd,Q020,,,,,,,,não
-tem_tv_assinatura,Q021,,,,,,,,não
-qtd_celulares,Q022,,,,,,,,não
-tem_telefone_fixo,Q023,,,,,,,,não
-qtd_computadores,Q024,,,,,,,acesso a recursos de estudo,sim
-tem_internet,Q025,,,,,,,acesso a recursos de estudo,sim
+numero_inscricao,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,participantes,chave do participante; 2024-2025: NU_INSCRICAO só existe em PARTICIPANTES; RESULTADOS usa NU_SEQUENCIAL e o INEP afirma que não é possível ligar as duas tabelas; ver D002,sim
+ano,NU_ANO,NU_ANO,NU_ANO,NU_ANO,NU_ANO,NU_ANO,ambas,,sim
+faixa_etaria,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,participantes,código de categoria,sim
+sexo,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,participantes,,sim
+estado_civil,TP_ESTADO_CIVIL,TP_ESTADO_CIVIL,TP_ESTADO_CIVIL,TP_ESTADO_CIVIL,TP_ESTADO_CIVIL,TP_ESTADO_CIVIL,participantes,,não
+cor_raca,TP_COR_RACA,TP_COR_RACA,TP_COR_RACA,TP_COR_RACA,TP_COR_RACA,TP_COR_RACA,participantes,categoria 6 (não dispõe da informação) só existe em 2021-2024,sim
+nacionalidade,TP_NACIONALIDADE,TP_NACIONALIDADE,TP_NACIONALIDADE,TP_NACIONALIDADE,TP_NACIONALIDADE,TP_NACIONALIDADE,participantes,,não
+situacao_conclusao,TP_ST_CONCLUSAO,TP_ST_CONCLUSAO,TP_ST_CONCLUSAO,TP_ST_CONCLUSAO,TP_ST_CONCLUSAO,TP_ST_CONCLUSAO,participantes,código de categoria; define a população de concluintes; 2024-2025: só em PARTICIPANTES; sem ligação com as notas,sim
+ano_conclusao,TP_ANO_CONCLUIU,TP_ANO_CONCLUIU,TP_ANO_CONCLUIU,TP_ANO_CONCLUIU,TP_ANO_CONCLUIU,TP_ANO_CONCLUIU,participantes,código de categoria e não o ano em si,não
+tipo_escola,TP_ESCOLA,TP_ESCOLA,TP_ESCOLA,TP_ESCOLA,,,,TP_ESCOLA removida em 2024; para comparar redes em 2020-2025 usar tipo_adm_escola (RESULTADOS); Q023 (tipo_escola_questionario) não se liga às notas,sim
+tipo_ensino,TP_ENSINO,TP_ENSINO,TP_ENSINO,TP_ENSINO,TP_ENSINO,TP_ENSINO,participantes,2021+: categoria 3 (EJA) deixou de existir,não
+treineiro,IN_TREINEIRO,IN_TREINEIRO,IN_TREINEIRO,IN_TREINEIRO,IN_TREINEIRO,IN_TREINEIRO,participantes,filtro para excluir treineiros; 2024-2025: só em PARTICIPANTES; em RESULTADOS usar escola preenchida como filtro: em 2020-2023 escola preenchida só ocorre com situacao_conclusao = 2 e treineiro = 0 (ver D002),sim
+codigo_municipio_escola,CO_MUNICIPIO_ESC,CO_MUNICIPIO_ESC,CO_MUNICIPIO_ESC,CO_MUNICIPIO_ESC,CO_MUNICIPIO_ESC,CO_MUNICIPIO_ESC,resultados,preenchida só para concluintes no ano: 65-72% deles em 2020-2023 e cerca de 97% em 2024-2025 (escola vinda do Censo Escolar); quebra de série entre 2023 e 2024,sim
+nome_municipio_escola,NO_MUNICIPIO_ESC,NO_MUNICIPIO_ESC,NO_MUNICIPIO_ESC,NO_MUNICIPIO_ESC,NO_MUNICIPIO_ESC,NO_MUNICIPIO_ESC,resultados,,sim
+codigo_estado_escola,CO_UF_ESC,CO_UF_ESC,CO_UF_ESC,CO_UF_ESC,CO_UF_ESC,CO_UF_ESC,resultados,,não
+sigla_estado_escola,SG_UF_ESC,SG_UF_ESC,SG_UF_ESC,SG_UF_ESC,SG_UF_ESC,SG_UF_ESC,resultados,,sim
+tipo_adm_escola,TP_DEPENDENCIA_ADM_ESC,TP_DEPENDENCIA_ADM_ESC,TP_DEPENDENCIA_ADM_ESC,TP_DEPENDENCIA_ADM_ESC,TP_DEPENDENCIA_ADM_ESC,TP_DEPENDENCIA_ADM_ESC,resultados,rede: federal/estadual/municipal/privada; vem do cadastro da escola e só existe para concluintes com escola preenchida; não é a mesma medida que TP_ESCOLA (declarada),sim
+tipo_localizacao_escola,TP_LOCALIZACAO_ESC,TP_LOCALIZACAO_ESC,TP_LOCALIZACAO_ESC,TP_LOCALIZACAO_ESC,TP_LOCALIZACAO_ESC,TP_LOCALIZACAO_ESC,resultados,urbana ou rural,sim
+tipo_situacao_escola,TP_SIT_FUNC_ESC,TP_SIT_FUNC_ESC,TP_SIT_FUNC_ESC,TP_SIT_FUNC_ESC,TP_SIT_FUNC_ESC,TP_SIT_FUNC_ESC,resultados,,não
+codigo_municipio_prova,CO_MUNICIPIO_PROVA,CO_MUNICIPIO_PROVA,CO_MUNICIPIO_PROVA,CO_MUNICIPIO_PROVA,CO_MUNICIPIO_PROVA,CO_MUNICIPIO_PROVA,ambas,alternativa quando o município da escola está vazio,sim
+nome_municipio_prova,NO_MUNICIPIO_PROVA,NO_MUNICIPIO_PROVA,NO_MUNICIPIO_PROVA,NO_MUNICIPIO_PROVA,NO_MUNICIPIO_PROVA,NO_MUNICIPIO_PROVA,ambas,,sim
+codigo_estado_prova,CO_UF_PROVA,CO_UF_PROVA,CO_UF_PROVA,CO_UF_PROVA,CO_UF_PROVA,CO_UF_PROVA,ambas,,não
+sigla_estado_prova,SG_UF_PROVA,SG_UF_PROVA,SG_UF_PROVA,SG_UF_PROVA,SG_UF_PROVA,SG_UF_PROVA,ambas,filtro de MG na ingestão,sim
+presenca_cn,TP_PRESENCA_CN,TP_PRESENCA_CN,TP_PRESENCA_CN,TP_PRESENCA_CN,TP_PRESENCA_CN,TP_PRESENCA_CN,resultados,2º dia,sim
+presenca_ch,TP_PRESENCA_CH,TP_PRESENCA_CH,TP_PRESENCA_CH,TP_PRESENCA_CH,TP_PRESENCA_CH,TP_PRESENCA_CH,resultados,1º dia; base para medir abstenção no 2º dia,sim
+presenca_lc,TP_PRESENCA_LC,TP_PRESENCA_LC,TP_PRESENCA_LC,TP_PRESENCA_LC,TP_PRESENCA_LC,TP_PRESENCA_LC,resultados,1º dia; base para medir abstenção no 2º dia,sim
+presenca_mt,TP_PRESENCA_MT,TP_PRESENCA_MT,TP_PRESENCA_MT,TP_PRESENCA_MT,TP_PRESENCA_MT,TP_PRESENCA_MT,resultados,2º dia,não
+codigo_prova_cn,CO_PROVA_CN,CO_PROVA_CN,CO_PROVA_CN,CO_PROVA_CN,CO_PROVA_CN,CO_PROVA_CN,resultados,identifica a cor da prova para decodificar respostas,sim
+codigo_prova_ch,CO_PROVA_CH,CO_PROVA_CH,CO_PROVA_CH,CO_PROVA_CH,CO_PROVA_CH,CO_PROVA_CH,resultados,,não
+codigo_prova_lc,CO_PROVA_LC,CO_PROVA_LC,CO_PROVA_LC,CO_PROVA_LC,CO_PROVA_LC,CO_PROVA_LC,resultados,,não
+codigo_prova_mt,CO_PROVA_MT,CO_PROVA_MT,CO_PROVA_MT,CO_PROVA_MT,CO_PROVA_MT,CO_PROVA_MT,resultados,,não
+nota_cn,NU_NOTA_CN,NU_NOTA_CN,NU_NOTA_CN,NU_NOTA_CN,NU_NOTA_CN,NU_NOTA_CN,resultados,variável resposta principal,sim
+nota_ch,NU_NOTA_CH,NU_NOTA_CH,NU_NOTA_CH,NU_NOTA_CH,NU_NOTA_CH,NU_NOTA_CH,resultados,,não
+nota_lc,NU_NOTA_LC,NU_NOTA_LC,NU_NOTA_LC,NU_NOTA_LC,NU_NOTA_LC,NU_NOTA_LC,resultados,,não
+nota_mt,NU_NOTA_MT,NU_NOTA_MT,NU_NOTA_MT,NU_NOTA_MT,NU_NOTA_MT,NU_NOTA_MT,resultados,,não
+vetor_respostas_cn,TX_RESPOSTAS_CN,TX_RESPOSTAS_CN,TX_RESPOSTAS_CN,TX_RESPOSTAS_CN,TX_RESPOSTAS_CN,TX_RESPOSTAS_CN,resultados,letras marcadas pelo participante,sim
+vetor_respostas_ch,TX_RESPOSTAS_CH,TX_RESPOSTAS_CH,TX_RESPOSTAS_CH,TX_RESPOSTAS_CH,TX_RESPOSTAS_CH,TX_RESPOSTAS_CH,resultados,,não
+vetor_respostas_lc,TX_RESPOSTAS_LC,TX_RESPOSTAS_LC,TX_RESPOSTAS_LC,TX_RESPOSTAS_LC,TX_RESPOSTAS_LC,TX_RESPOSTAS_LC,resultados,,não
+vetor_respostas_mt,TX_RESPOSTAS_MT,TX_RESPOSTAS_MT,TX_RESPOSTAS_MT,TX_RESPOSTAS_MT,TX_RESPOSTAS_MT,TX_RESPOSTAS_MT,resultados,,não
+tipo_lingua_estrangeira,TP_LINGUA,TP_LINGUA,TP_LINGUA,TP_LINGUA,TP_LINGUA,TP_LINGUA,resultados,,não
+vetor_gabarito_cn,TX_GABARITO_CN,TX_GABARITO_CN,TX_GABARITO_CN,TX_GABARITO_CN,TX_GABARITO_CN,TX_GABARITO_CN,resultados,gabarito na ordem da prova do participante,sim
+vetor_gabarito_ch,TX_GABARITO_CH,TX_GABARITO_CH,TX_GABARITO_CH,TX_GABARITO_CH,TX_GABARITO_CH,TX_GABARITO_CH,resultados,,não
+vetor_gabarito_lc,TX_GABARITO_LC,TX_GABARITO_LC,TX_GABARITO_LC,TX_GABARITO_LC,TX_GABARITO_LC,TX_GABARITO_LC,resultados,,não
+vetor_gabarito_mt,TX_GABARITO_MT,TX_GABARITO_MT,TX_GABARITO_MT,TX_GABARITO_MT,TX_GABARITO_MT,TX_GABARITO_MT,resultados,,não
+status_redacao,TP_STATUS_REDACAO,TP_STATUS_REDACAO,TP_STATUS_REDACAO,TP_STATUS_REDACAO,TP_STATUS_REDACAO,TP_STATUS_REDACAO,resultados,,não
+nota_redacao_c1,NU_NOTA_COMP1,NU_NOTA_COMP1,NU_NOTA_COMP1,NU_NOTA_COMP1,NU_NOTA_COMP1,NU_NOTA_COMP1,resultados,,não
+nota_redacao_c2,NU_NOTA_COMP2,NU_NOTA_COMP2,NU_NOTA_COMP2,NU_NOTA_COMP2,NU_NOTA_COMP2,NU_NOTA_COMP2,resultados,,não
+nota_redacao_c3,NU_NOTA_COMP3,NU_NOTA_COMP3,NU_NOTA_COMP3,NU_NOTA_COMP3,NU_NOTA_COMP3,NU_NOTA_COMP3,resultados,,não
+nota_redacao_c4,NU_NOTA_COMP4,NU_NOTA_COMP4,NU_NOTA_COMP4,NU_NOTA_COMP4,NU_NOTA_COMP4,NU_NOTA_COMP4,resultados,,não
+nota_redacao_c5,NU_NOTA_COMP5,NU_NOTA_COMP5,NU_NOTA_COMP5,NU_NOTA_COMP5,NU_NOTA_COMP5,NU_NOTA_COMP5,resultados,,não
+nota_redacao,NU_NOTA_REDACAO,NU_NOTA_REDACAO,NU_NOTA_REDACAO,NU_NOTA_REDACAO,NU_NOTA_REDACAO,NU_NOTA_REDACAO,resultados,,não
+escolaridade_pai,Q001,Q001,Q001,Q001,Q001,Q001,participantes,,sim
+escolaridade_mae,Q002,Q002,Q002,Q002,Q002,Q002,participantes,,sim
+grupo_ocupacao_pai,Q003,Q003,Q003,Q003,Q003,Q003,participantes,,sim
+grupo_ocupacao_mae,Q004,Q004,Q004,Q004,Q004,Q004,participantes,,sim
+qtd_moradores,Q005,Q005,Q005,Q005,Q005,Q005,participantes,usada para renda per capita,sim
+faixa_renda,Q006,Q006,Q006,Q006,Q007,Q007,participantes,conferir se as faixas mudam entre anos; faixas em múltiplos do salário mínimo do ano (B = até 1 SM; Q = acima de 20 SM); valores em R$ mudam a cada ano,sim
+frequencia_empregado_domestico,Q007,Q007,Q007,Q007,Q008,Q008,participantes,item de índice de bens; 2024+: pergunta reformulada (contrata serviços de diarista/doméstica); categorias iguais,sim
+qtd_banheiros,Q008,Q008,Q008,Q008,Q009,Q009,participantes,item de índice de bens; 2024+: topo vira D = três ou mais (antes D = três; E = quatro ou mais); recodificar,sim
+qtd_quartos,Q009,Q009,Q009,Q009,Q010,Q010,participantes,2024+: topo vira D = três ou mais; recodificar,não
+qtd_carros,Q010,Q010,Q010,Q010,Q011,Q011,participantes,item de índice de bens; 2024+: pergunta passa a ser sobre as pessoas com quem mora; topo vira D = três ou mais,sim
+qtd_motocicletas,Q011,Q011,Q011,Q011,Q012,Q012,participantes,item de índice de bens; 2024+: topo vira D = três ou mais; recodificar,sim
+qtd_geladeiras,Q012,Q012,Q012,Q012,Q013,Q013,participantes,item de índice de bens; 2024+: topo vira D = três ou mais; recodificar,sim
+qtd_freezers,Q013,Q013,Q013,Q013,Q014,Q014,participantes,item de índice de bens; índice de bens restrito a 2020-2023 (D002); 2024-2025: vira sim/não e exclui segunda porta da geladeira; nesses anos só para descrição,sim
+qtd_lavadoras_roupas,Q014,Q014,Q014,Q014,Q015,Q015,participantes,item de índice de bens; índice de bens restrito a 2020-2023 (D002); 2024-2025: vira sim/não; nesses anos só para descrição,sim
+qtd_secadoras,Q015,Q015,Q015,Q015,,,,item de índice de bens; índice de bens restrito a 2020-2023 (D002); item removido em 2024,sim
+qtd_microondas,Q016,Q016,Q016,Q016,Q016,Q016,participantes,item de índice de bens; índice de bens restrito a 2020-2023 (D002); 2024-2025: vira sim/não; nesses anos só para descrição,sim
+qtd_lavadoras_loucas,Q017,Q017,Q017,Q017,,,,item de índice de bens; índice de bens restrito a 2020-2023 (D002); item removido em 2024,sim
+tem_aspirador,Q018,Q018,Q018,Q018,Q017,Q017,participantes,sim/não em todos os anos,não
+qtd_televisores,Q019,Q019,Q019,Q019,Q018,Q018,participantes,2024+: topo vira D = três ou mais,não
+tem_aparelho_dvd,Q020,Q020,Q020,Q020,,,,item removido em 2024,não
+tem_tv_assinatura,Q021,Q021,Q021,Q021,Q019,Q019,participantes,,não
+qtd_celulares,Q022,Q022,Q022,Q022,Q022,Q022,participantes,2024 tem D = três ou mais e E = quatro ou mais (erro no dicionário); 2025 corrige D = três,não
+tem_telefone_fixo,Q023,Q023,Q023,Q023,,,,item removido em 2024,não
+qtd_computadores,Q024,Q024,Q024,Q024,Q021,Q021,participantes,acesso a recursos de estudo; 2024+: computador/notebook; categorias iguais,sim
+tem_internet,Q025,Q025,Q025,Q025,Q020,Q020,participantes,acesso a recursos de estudo; 2024+: pergunta restrita a wi-fi,sim
+codigo_escola,,,,,CO_ESCOLA,CO_ESCOLA,resultados,novo em 2024; sem equivalente em 2020-2023; vem do Censo Escolar; mascarado se a escola tem menos de 10 participantes (perde escolas pequenas),sim
+possui_renda,,,,,Q006,Q006,participantes,novo em 2024; renda própria do participante,não
+tipo_escola_questionario,,,,,Q023,Q023,participantes,novo em 2024; trajetória pública/privada com ou sem bolsa; substitui TP_ESCOLA,não
