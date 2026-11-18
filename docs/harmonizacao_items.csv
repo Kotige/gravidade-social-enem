@@ -1,0 +1,15 @@
+conceito,coluna_inep,observacao,usar
+codigo_prova,CO_PROVA,liga com codigo_prova_cn dos participantes,sim
+cor_prova,TX_COR,,sim
+posicao_item,CO_POSICAO,ordem da questão no caderno,sim
+codigo_item,CO_ITEM,identifica o mesmo item entre cores de prova,sim
+sigla_area,SG_AREA,filtro CN na ingestão,sim
+gabarito,TX_GABARITO,,sim
+codigo_habilidade,CO_HABILIDADE,,sim
+item_abandonado,IN_ITEM_ABAN,item anulado na correção,sim
+motivo_abandono,TX_MOTIVO_ABAN,,sim
+param_a,NU_PARAM_A,TRI: discriminação,sim
+param_b,NU_PARAM_B,TRI: dificuldade,sim
+param_c,NU_PARAM_C,TRI: acerto ao acaso,sim
+item_adaptado,IN_ITEM_ADAPTADO,,sim
+lingua,TP_LINGUA,só se aplica a LC,não
