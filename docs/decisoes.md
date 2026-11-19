@@ -15,6 +15,11 @@ Cada decisão traz o contexto, a escolha e as consequências.
 
 **Status:** Aceita
 
+**Atualizações:**
+
+- 2026-11-18: inclusão do prefixo `param_` para os itens da prova
+  (`docs/harmonizacao_itens.csv`).
+
 ### Contexto
 
 Os microdados do ENEM usam códigos do INEP (ex.: `Q006`, `TP_ESCOLA`)
@@ -42,6 +47,7 @@ o SQL, os notebooks e o app.
 | `qtd_`      | quantidades                                 | `qtd_computadores`                        |
 | `tem_`      | variáveis sim/não sobre posse ou acesso     | `tem_internet`                            |
 | `vetor_`    | cadeias de caracteres questão a questão     | `vetor_respostas_cn`, `vetor_gabarito_cn` |
+| `param_`    | parâmetros do modelo da TRI de cada item    | `param_a`, `param_b`, `param_c`           |
 
 **Sufixos de área** (siglas oficiais do INEP)
 

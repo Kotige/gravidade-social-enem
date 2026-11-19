@@ -1,5 +1,6 @@
 conceito,2020,2021,2022,2023,2024,2025,tabela_2024_2025,observacao,usar
 numero_inscricao,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,NU_INSCRICAO,participantes,chave do participante; 2024-2025: NU_INSCRICAO só existe em PARTICIPANTES; RESULTADOS usa NU_SEQUENCIAL e o INEP afirma que não é possível ligar as duas tabelas; ver D002,sim
+numero_sequencial,,,,,NU_SEQUENCIAL,NU_SEQUENCIAL,resultados,identificador de linha de RESULTADOS em 2024-2025; não se liga a numero_inscricao (ver D002),sim
 ano,NU_ANO,NU_ANO,NU_ANO,NU_ANO,NU_ANO,NU_ANO,ambas,,sim
 faixa_etaria,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,TP_FAIXA_ETARIA,participantes,código de categoria,sim
 sexo,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,TP_SEXO,participantes,,sim
