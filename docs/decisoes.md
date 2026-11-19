@@ -1,13 +1,13 @@
 # Registro de decisões
 
-Decisões de projeto do Gravidade Social, em ordem cronológica.
-Cada decisão traz o contexto, a escolha e as consequências.
+Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão traz o contexto, a escolha e as consequências.
 
-| Nº   | Data       | Decisão                               | Status |
-| ---- | ---------- | ------------------------------------- | ------ |
-| D001 | 2026-11-18 | Convenção de nomes das variáveis      | Aceita |
-| D002 | 2026-11-18 | Escopo da análise por período         | Aceita |
-| D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão | Aceita |
+| Nº   | Data       | Decisão                                              | Status |
+| ---- | ---------- | ---------------------------------------------------- | ------ |
+| D001 | 2026-11-18 | Convenção de nomes das variáveis                     | Aceita |
+| D002 | 2026-11-18 | Escopo da análise por período                        | Aceita |
+| D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão                | Aceita |
+| D004 | 2026-11-19 | Escolas mascaradas e recorte das análises por escola | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -17,15 +17,11 @@ Cada decisão traz o contexto, a escolha e as consequências.
 
 **Atualizações:**
 
-- 2026-11-18: inclusão do prefixo `param_` para os itens da prova
-  (`docs/harmonizacao_itens.csv`).
+- 2026-11-18: inclusão do prefixo `param_` para os itens da prova (`docs/harmonizacao_itens.csv`).
 
 ### Contexto
 
-Os microdados do ENEM usam códigos do INEP (ex.: `Q006`, `TP_ESCOLA`)
-que nem sempre são autoexplicativos e podem mudar entre os anos.
-O projeto precisa de nomes padronizados para as tabelas limpas,
-o SQL, os notebooks e o app.
+Os microdados do ENEM usam códigos do INEP (ex.: `Q006`, `TP_ESCOLA`) que nem sempre são autoexplicativos e podem mudar entre os anos. O projeto precisa de nomes padronizados para as tabelas limpas, o SQL, os notebooks e o app.
 
 ### Decisão
 
@@ -84,6 +80,10 @@ As competências da redação usam `_c1` a `_c5` (ex.: `nota_redacao_c3`).
 
 **Status:** Aceita
 
+**Atualizações:**
+
+- 2026-11-19: o mascaramento de `CO_ESCOLA` foi verificado nos dados. O código não é apagado, e sim substituído por uma máscara, e as demais colunas da escola continuam reais. Ajustados o contexto e a consequência sobre escolas pequenas.
+
 ### Contexto
 
 A partir de 2024, o INEP divide os microdados do ENEM em duas tabelas:
@@ -91,15 +91,9 @@ A partir de 2024, o INEP divide os microdados do ENEM em duas tabelas:
 - `PARTICIPANTES`: perfil, questionário socioeconômico `IN_TREINEIRO` e `TP_ST_CONCLUSAO`;
 - `RESULTADOS`: escola, presença, notas, respostas e gabaritos.
 
-`PARTICIPANTES` é identificada por `NU_INSCRICAO`, e `RESULTADOS`
-por `NU_SEQUENCIAL`. O dicionário de 2024 afirma que não é possível
-usar uma para relacionar as duas bases. Em 2024–2025, portanto,
-não há como ligar a nota de um participante ao seu perfil
-socioeconômico. As duas tabelas só têm em comum o ano e o município
-e a UF da prova.
+`PARTICIPANTES` é identificada por `NU_INSCRICAO`, e `RESULTADOS` por `NU_SEQUENCIAL`. O dicionário de 2024 afirma que não é possível usar uma para relacionar as duas bases. Em 2024–2025, portanto, não há como ligar a nota de um participante ao seu perfil socioeconômico. As duas tabelas só têm em comum o ano e o município e a UF da prova.
 
-Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA`
-(vindo do Censo Escolar), que não existe em 2020–2023.
+Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA` (vindo do Censo Escolar), que não existe em 2020–2023. Segundo o dicionário de 2024, o código real é substituído por uma máscara quando a escola tem menos de 10 participantes na edição do exame. Nos dados, as máscaras seguem o formato `600xxxxx`, enquanto os códigos reais começam com o código da UF no IBGE (`31` para MG).
 
 | Análise                                   | 2020–2023 | 2024–2025                |
 | ----------------------------------------- | --------- | ------------------------ |
@@ -129,7 +123,8 @@ Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA`
 
 - **Quebra de série entre 2023 e 2024.** Em 2020–2023, só 65–72% dos concluintes no ano têm escola preenchida; em 2024–2025, cerca de 97% (Brasil: 1,57 de 1,62 milhão em 2024; 1,74 de 1,81 milhão em 2025), porque a escola passou a vir do Censo Escolar pelo CPF. A população "com escola" de 2024–2025 é mais ampla, e os concluintes que antes ficavam sem escola provavelmente não são aleatórios. Comparações entre os dois períodos precisam mencionar essa mudança.
 - **Duas populações em 2020–2023.** A análise individual usa todos os concluintes no ano; a agregada, só os 65–72% com escola preenchida. Os números de uma e de outra não batem exatamente nos mesmos anos, e a diferença vem desse recorte.
-- **Escolas pequenas ficam de fora do cruzamento com o Censo.** `CO_ESCOLA` vem mascarado quando a escola tem menos de 10 participantes, o que tende a excluir escolas rurais e do interior.
+- **Escolas pequenas ficam de fora das análises por escola.** Escolas com menos de 10 participantes têm o código substituído por uma máscara (`600xxxxx`), que não se liga ao Censo Escolar. Em MG, são 565 escolas em 2024 e 489 em 2025. Os alunos dessas escolas continuam nas análises por município, rede e localização, porque essas colunas não são mascaradas. A perda tende a afetar mais as escolas rurais e do interior.
+- **As máscaras não se repetem entre os anos.** Não é possível acompanhar a mesma escola mascarada de 2024 para 2025.
 - **`tipo_adm_escola` não substitui `TP_ESCOLA` um para um.** A primeira vem do cadastro da escola e só existe para quem tem escola preenchida; a segunda era declarada pelo participante.
 - **Variáveis do questionário mantêm a escala de 2020–2023.** Itens que viraram sim/não em 2024 (freezer, lavadora, micro-ondas) seguem como `qtd_` e são usados em 2024–2025 só para descrição.
 - O mapeamento e essas ressalvas ficam registrados em `docs/harmonizacao.csv`.
@@ -142,21 +137,11 @@ Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA`
 
 ### Contexto
 
-A ingestão converte os CSVs brutos do INEP em Parquet (ver
-`docs/spec-ingestao.md`). Duas escolhas afetam todas as etapas
-seguintes: em que momento os nomes do INEP viram os nomes
-padronizados da D001, e quais participantes contam como "de Minas
-Gerais".
+A ingestão converte os CSVs brutos do INEP em Parquet (ver `docs/spec-ingestao.md`). Duas escolhas afetam todas as etapas seguintes: em que momento os nomes do INEP viram os nomes padronizados da D001, e quais participantes contam como "de Minas Gerais".
 
-Sobre os nomes: os códigos do questionário mudam de posição em 2024.
-`Q006`, por exemplo, é a renda familiar até 2023 e a renda própria do
-participante a partir de 2024. Com os nomes originais, o mesmo código
-teria significados diferentes conforme o ano.
+Sobre os nomes: os códigos do questionário mudam de posição em 2024. `Q006`, por exemplo, é a renda familiar até 2023 e a renda própria do participante a partir de 2024. Com os nomes originais, o mesmo código teria significados diferentes conforme o ano.
 
-Sobre o filtro: cada participante tem duas UFs, a da prova
-(`SG_UF_PROVA`) e a da escola (`SG_UF_ESC`). A da escola só existe
-para quem tem escola preenchida (ver D002), e a tabela
-`PARTICIPANTES` de 2024–2025 só tem a da prova.
+Sobre o filtro: cada participante tem duas UFs, a da prova (`SG_UF_PROVA`) e a da escola (`SG_UF_ESC`). A da escola só existe para quem tem escola preenchida (ver D002), e a tabela `PARTICIPANTES` de 2024–2025 só tem a da prova.
 
 ### Decisão
 
@@ -178,3 +163,39 @@ para quem tem escola preenchida (ver D002), e a tabela
 - Se uma coluna prevista na harmonização não existir no CSV de algum ano, a ingestão para com erro. A divergência precisa ser corrigida na harmonização antes de seguir.
 - Os Parquets não guardam os nomes originais do INEP. Para rastrear uma coluna até a fonte, consulta-se a harmonização.
 - Os Parquets contêm um conjunto maior que o de qualquer análise isolada, e a Etapa 2 sempre precisa aplicar o recorte de UF.
+
+## D004 — Escolas mascaradas e recorte das análises por escola
+
+**Data:** 2026-11-19
+
+**Status:** Aceita
+
+### Contexto
+
+Em 2024-2025, escolas com menos de 10 participantes no exame têm o `CO_ESCOLA` substituído por uma máscara no formato `600xxxxx`, que não se liga ao Censo Escolar (ver D002). As demais colunas da escola continuam reais.
+
+Além disso, a tabela `RESULTADOS` filtrada para MG (D003) contém escolas de outros estados com poucos alunos, aqueles que fizeram a prova em MG. Em 2024, 242 das 263 escolas de fora de MG têm pelo menos 10 participantes na base.
+
+Mesmo entre escolas com código real, o número de presentes em CN pode ser pequeno por causa da abstenção.
+
+### Decisão
+
+- **Coluna `escola_mascarada`** criada na limpeza: verdadeira quando `código_escola` começa com `6`; nula quando não há escola.
+- **Análises por escola e cruzamento com o Censo** usam só escolas:
+  - Mineiras (`sigla_estado_escola = 'MG'`);
+  - não mascaradas (`escola_mascarada = false`);
+  - com pelo menos **10 presentes em CN** no ano.
+- **Análises por município, rede e localização** mantêm os alunos de escola mascaradas, porque essas colunas não são afetadas.
+
+### Alternativas consideradas
+
+- **Descartar participantes de escolas mascaradas em todas as análises:** descartada porque perderia alunos de escolas pequenas nas análises em que eles podem ser usados.
+- **Incluir escolas de fora de MG nas análises por escola:** descartada porque essas escolas aparecem incompletas na base.
+- **Nenhum mínimo além da regra do INEP:** descartada porque a regra conta inscritos, e médias calculadas com 5 a 7 notas podem ser instáveis para comparar escolas.
+- **Mínimo de 30 presentes em CN**: descartada porque excluiria muitas escolas pequenas, que já são sub-representadas pelo mascaramento.
+
+### Consequências
+
+- O número de escolas analisadas é menor que o total de escolas mineiras na base; o tamanho do corte é registrado na Etapa 2.
+- Médias por escola ficam mais estáveis, ao custo de excluir as menores escolas.
+- O mínimo de 10 presentes é o mesmo usado para suprimir grupos no app, mantendo um único critério de tamanho mínimo no projeto.

@@ -1,5 +1,6 @@
 #folders
 venv/
+.venv/
 
 #files
 Gravidade-Social-Plano-do-Projeto.pdf
