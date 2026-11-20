@@ -250,6 +250,12 @@ A ingestão revelou três situações de dados ausentes ou de não resposta, inv
 
 **Status:** Aceita
 
+**Atualizações:**
+
+- 2026-11-20: definidos os limites exatos de `faixa_renda_per_capita`: até 1/2 SM inclusive (`ate_meio_sm`, incluindo renda zero); acima de 1/2 até 1 SM (`meio_a_1_sm`); acima de 1 até 2 SM (`1_a_2_sm`); acima de 2 SM (`acima_2_sm`). O limite "até 1/2 SM inclusive" segue o critério de baixa renda do Cadastro Único.
+- 2026-11-20: `escolaridade_max_pais` é representada por duas colunas, como pai e mãe: `escolaridade_max_pais_cat` (texto, com `nao_sei`) e `escolaridade_max_pais_nivel` (1 a 4, nulo para `nao_sei`).
+- 2026-11-20: `tipo_escola = '4'` (exterior, presente só no dicionário de 2020) é tratado como nulo; não ocorre nos dados.
+
 ### Contexto
 
 As variáveis do questionário e da escola vêm em categorias detalhadas (letras INEP), algumas com poucos participantes e nem todas com uma ordem natural. Para os modelos e para o app, é preciso definir escalas estáveis entre os anos. As categorias de "Não sei" já foram tratadas na D005.
