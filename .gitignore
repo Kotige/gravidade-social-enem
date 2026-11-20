@@ -12,3 +12,8 @@ data/*
 data/*/*
 !data/*/.gitkeep
 *.duckdb
+
+#python
+__pycache__/
+*.pyc
+*.egg-info/
