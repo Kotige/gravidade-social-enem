@@ -40,6 +40,7 @@ As views de staging leem os Parquets por caminho relativo à raiz do projeto (`d
 ```
 sql/
 ├── staging/
+│   ├── 00_macros.sql
 │   ├── 01_stg_base_unica.sql
 │   ├── 02_stg_resultados.sql
 │   ├── 03_stg_participantes.sql
@@ -57,6 +58,8 @@ sql/
 
 - Um arquivo por tabela ou view, com um comentário no topo dizendo o que ela contém e quais decisões aplica (ex.: `-- aplica D005, D006`).
 - O prefixo numérico define a ordem de execução.
+- `00_macros.sql` define macros escalares do DuckDB com as regras de recodificação compartilhadas pelas views: escola e presença (5.1) e questionário (5.2). Cada macro tem o nome da coluna derivada que produz e recebe as colunas originais como argumentos. As views só aplicam as macros, sem repetir as regras.
+- As views leem os Parquets com `hive_partitioning = false`, porque `ano` já está gravado nos arquivos como `SMALLINT`, e a partição hive o sobrescreveria com `BIGINT`.
 - `scripts/build_db.py` só executa os arquivos em ordem e roda os testes; toda a lógica fica nos `.sql`.
 
 ## 5. Camada staging
