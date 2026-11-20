@@ -14,6 +14,7 @@
 - Código e comentários em inglês.
 - Commits: Conventional Commits, em inglês.
 - Nunca versionar nada dentro de `data/` além de README e .gitkeep.
+- Commits: seguir `docs/guia-commits-semanticos.md` (Conventional Commits, em inglês).
 
 ## Stack
 
