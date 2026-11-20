@@ -8,6 +8,7 @@ Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão t
 | D002 | 2026-11-18 | Escopo da análise por período                        | Aceita |
 | D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão                | Aceita |
 | D004 | 2026-11-19 | Escolas mascaradas e recorte das análises por escola | Aceita |
+| D005 | 2026-11-20 | Tratamento de nulos e não resposta                   | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -199,3 +200,38 @@ Mesmo entre escolas com código real, o número de presentes em CN pode ser pequ
 - O número de escolas analisadas é menor que o total de escolas mineiras na base; o tamanho do corte é registrado na Etapa 2.
 - Médias por escola ficam mais estáveis, ao custo de excluir as menores escolas.
 - O mínimo de 10 presentes é o mesmo usado para suprimir grupos no app, mantendo um único critério de tamanho mínimo no projeto.
+
+## D005 - Tratamento de nulos e não respostas
+
+**Data:** 2026-11-20
+
+**Status:** Aceita
+
+### Contexto
+
+A ingestão revelou três situações de dados ausentes ou de não resposta, investigadas em `notebooks/00_pendencias.ipynb`:
+
+1. **`item_adaptado` em 2021:** 990 dos 1.305 itens de CN estão nulos. Em 2021 não existe nenhum valor `0`, enquanto nos demais anos a coluna só tem `0` e `1`. Os 315 itens com `1` correspondem a 7 cadernos, a mesma quantidade de 2020, e os 990 nulos, a 22 cadernos.
+2. **Questionário socioeconômico em 2020:** 1,5% de nulos em 2020 e nenhum de 2021 em diante. As categorias são as mesmas em todos os anos, então a resposta não virou categoria. Não foi encotnrada nenhuma informação que possibilite afirmar que o questionário passou a ser obrigatório a partir de 2021 nos documentos oficiais do INEP obtidos junto com os dados. Entre os concluíntes de 2020 (`situacao_conclusao = 2`, `treineiro = 0`), 1.548 de 125.998 (1,23%) não responderam. Esse grupo tem presença menor no 2° dia (42,4% contra 61,9%) e média em CN menor (492,7 contra 505,2).
+3. **"Não sei" nas perguntas sobre os pais:** a escolaridade (`H`) e a ocupação (`F`) do pai e da mãe têm a opção "Não sei", que não é um nível das escalas. O volume é relevante, sobretudo para o pai (em 2020, 45.022 "Não sei" na escolaridade do pai contra 12.672 no da mãe).
+
+### Decisão
+
+- **`item_adaptado` em 2021**: nulo é convertido em `0` (não adaptado), só nesse ano.
+- **Concluíntes de 2020 sem questionário:** excluídos das análises que usam variáveis do questionário. Continuam nas análises que não dependem dele.
+- **"Não sei" na escolaridade e ocupação dos pais:** tratado como categoria própria, separada dos níveis da escala. Nos modelos, entra como um grupo à parte, e não como um ponto da escala ordinal.
+- **Faixa de renda `A`** ("Nenhuma renda") é um nível válido da escala, e não uma resposta.
+
+### Alternativas consideradas
+
+- **Imputar renda e escolaridade dos concluíntes de 2020 sem questionário:** descartada porque não há informação para uma imputação razoável, e o grupo é pequeno.
+
+- **"Não sei" como ausente (excluir dos modelos)**: descartada porque removeria de 5% a 10% dos participantes no caso do pai, e justamente um grupo que pode ser socialmente diferente e representar uma realidade comum no brasil.
+- **Imputar um nível de escolaridade para o "Não sei":** descartada porque não há base para estiver o nível, e a imputação esconderia um possível sinal relevante.
+
+### Consequências
+
+- Excluir os concluíntes de 2020 sem questionário muda a média de CN de 2020 em só 0,1 ponto (505,2 para 505,1).
+- A abstenção dos concluíntes de 2020 na análise individual fica levemente subestimada, porque o grupo excluído falta mais.
+- Os modelos que usam a escolaridade dos pais terão uma categoria "Não sei" com coeficiente próprio, que precisa ser interpretado separadamente.
+- A recodificação das escalas (como agrupar os níveis de escolaridade e as faixas de renda) é uma decisão à parte, registrada em seguida.
