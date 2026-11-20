@@ -2,13 +2,14 @@
 
 Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão traz o contexto, a escolha e as consequências.
 
-| Nº   | Data       | Decisão                                              | Status |
-| ---- | ---------- | ---------------------------------------------------- | ------ |
-| D001 | 2026-11-18 | Convenção de nomes das variáveis                     | Aceita |
-| D002 | 2026-11-18 | Escopo da análise por período                        | Aceita |
-| D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão                | Aceita |
-| D004 | 2026-11-19 | Escolas mascaradas e recorte das análises por escola | Aceita |
-| D005 | 2026-11-20 | Tratamento de nulos e não resposta                   | Aceita |
+| Nº   | Data       | Decisão                                               | Status |
+| ---- | ---------- | ----------------------------------------------------- | ------ |
+| D001 | 2026-11-18 | Convenção de nomes das variáveis                      | Aceita |
+| D002 | 2026-11-18 | Escopo da análise por período                         | Aceita |
+| D003 | 2026-11-18 | Renomeação e filtro de MG na ingestão                 | Aceita |
+| D004 | 2026-11-19 | Escolas mascaradas e recorte das análises por escola  | Aceita |
+| D005 | 2026-11-20 | Tratamento de nulos e não resposta                    | Aceita |
+| D006 | 2026-11-20 | Recodificação das variáveis socioeconômicas e da rede | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -201,7 +202,7 @@ Mesmo entre escolas com código real, o número de presentes em CN pode ser pequ
 - Médias por escola ficam mais estáveis, ao custo de excluir as menores escolas.
 - O mínimo de 10 presentes é o mesmo usado para suprimir grupos no app, mantendo um único critério de tamanho mínimo no projeto.
 
-## D005 - Tratamento de nulos e não respostas
+## D005 — Tratamento de nulos e não respostas
 
 **Data:** 2026-11-20
 
@@ -235,3 +236,88 @@ A ingestão revelou três situações de dados ausentes ou de não resposta, inv
 - A abstenção dos concluíntes de 2020 na análise individual fica levemente subestimada, porque o grupo excluído falta mais.
 - Os modelos que usam a escolaridade dos pais terão uma categoria "Não sei" com coeficiente próprio, que precisa ser interpretado separadamente.
 - A recodificação das escalas (como agrupar os níveis de escolaridade e as faixas de renda) é uma decisão à parte, registrada em seguida.
+
+## D006 — Recodificação das variáveis socioeconômicas e da rede
+
+**Data: 2026-11-20**
+
+**Status:** Aceita
+
+### Contexto
+
+As variáveis do questionário e da escola vêm em categorias detalhadas (letras INEP), algumas com poucos participantes e nem todas com uma ordem natural. Para os modelos e para o app, é preciso definir escalas estáveis entre os anos. As categorias de "Não sei" já foram tratadas na D005.
+
+### Decisão
+
+**Escolaridade do pai e da mãe:** quatro níveis ordinais e uma categoria à parte.
+
+| Nível | Letras  | Rótulo                 |
+| ----- | ------- | ---------------------- |
+| 1     | A, B, C | fundamental incompleto |
+| 2     | D       | fundamental completo   |
+| 3     | E       | médio completo         |
+| 4     | F, G    | superior completo      |
+| —     | H       | não sei (D005)         |
+
+**`escolaridade_max_pais`**: a maiore escolaridade entre o pai e a mãe. Quando só um é conhecido, usa-se a dele(a); é "não sei" apenas quando os dois são desconhecidos.
+
+**Ocupação do pai e da mãe**: mantidos os cinco grupos do INEP (A a E) e o "não sei" (F), tratados como **categorias nominais, sem ordem**.
+
+**Renda**: claculada per capita, em salários mínimos (SM).
+
+    renda_per_capita = ponto médio da faixa (em SM) / qtd_moradores
+
+| Letra | Faixa (SM)    | Ponto médio |
+| ----- | ------------- | ----------- |
+| A     | nenhuma renda | 0           |
+| B     | até 1         | 0,5         |
+| C     | 1 a 1,5       | 1,25        |
+| D     | 1,5 a 2       | 1,75        |
+| E     | 2 a 2,5       | 2,25        |
+| F     | 2,5 a 3       | 2,75        |
+| G     | 3 a 4         | 3,5         |
+| H     | 4 a 5         | 4,5         |
+| I     | 5 a 6         | 5,5         |
+| J     | 6 a 7         | 6,5         |
+| K     | 7 a 8         | 7,5         |
+| L     | 8 a 9         | 8,5         |
+| M     | 9 a 10        | 9,5         |
+| N     | 10 a 12       | 11          |
+| O     | 12 a 15       | 13,5        |
+| P     | 15 a 20       | 17,5        |
+| Q     | acima de 20   | 25          |
+
+Para descrição e para o app, `faixa_renda_per_capita` em quatro faixas:
+
+| Faixa | Renda per capita |
+| ----- | ---------------- |
+| 1     | até 1/2 SM       |
+| 2     | de 1/2 a 1 SM    |
+| 3     | de 1 a 2 SM      |
+| 4     | acima de 2 SM    |
+
+**Rede da escola (`tipo_adm_escola`)**: três grupos.
+
+| Grupo                      | Categorias originais |
+| -------------------------- | -------------------- |
+| federal                    | federal              |
+| pública estadual/municipal | estadual, municipal  |
+| privada                    | privada              |
+
+**Tipo de escola declarado (`tipo_escola`):** a categoria `1` ("Não respondeu") é tratada como ausente. Entre os concluíntes do ano, ela quase não ocorre (nenhum caso em 2020 e 2022, 2 em 2021 e 1 em 2023).
+
+### Alternativas consideradas
+
+- **Manter os sete níveis de escolaridade:** descartada porque alguns níveis, como "nunca estudou", têm poucos participantes e médias instáveis, e quatro níveis seguem os marcos do sistema educacional.
+- **Ordenar a ocupação por status e criar `ocupacao_max_pais`**: descartada porque a ordenação dos grupos por status social é subjetiva; como categorias nominais, os modelos mostram se há um gradiante sem impô-lo.
+- **Usar a renda familiar, sem dividir pelos membros moradores:** descartada porque a mesma renda representa condições muito diferentes conforme o tamanho da família.
+- **Corrigir a renda pela inflação em reais:** desnecessário, porque as faixas já são definidas em salários mínimos do ano.
+- **Manter a rede municipal separada:** descartada porque a rede municipal oferece pouco ensino médio em MG.
+- **Juntar as redes federal à estadual:** descartada porque a rede federal (CEFETs e Institutos Federais) tem perfil muito diferente, e misturá-las esconderia esse contraste.
+
+### Consequências
+
+- O ponto médio da faixa Q (25 SM) é uma convenção. ele afeta poucos participanetes e, por isso, pouco as médias.
+- A renda per capta é uma aproximação: usa o ponto médio da faixa e o número de moradores de clarado.
+- O corte de 1/2 SM per capita coincide com a referência de baixa renda do Cadastro Único, o que facilita a comunicação dos resultados.
+- A escolaridade dos pais pode entrar nos modelos como escala ordinal (níveis de 1 a 4) ou como categorias; a escolha fica para a etapa 4.
