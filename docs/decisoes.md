@@ -21,6 +21,7 @@ Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão t
 **Atualizações:**
 
 - 2026-11-18: inclusão do prefixo `param_` para os itens da prova (`docs/harmonizacao_itens.csv`).
+- 2026-11-20: inclusão dos prefixos de métricas agregadas (`taxa_`, `media_`, `desvio_padrao_`, `p25_`/`p50_`/`p75_`) e ampliação de `qtd_` para contagens.
 
 ### Contexto
 
@@ -34,19 +35,24 @@ Os microdados do ENEM usam códigos do INEP (ex.: `Q006`, `TP_ESCOLA`) que nem s
 
 **Prefixos**
 
-| Prefixo     | Uso                                         | Exemplo                                   |
-| ----------- | ------------------------------------------- | ----------------------------------------- |
-| `nota_`     | notas das provas e da redação               | `nota_cn`, `nota_redacao_c1`              |
-| `presenca_` | presença em cada prova                      | `presenca_cn`                             |
-| `codigo_`   | códigos numéricos (municípios, UFs, provas) | `codigo_municipio_escola`                 |
-| `nome_`     | nomes por extenso                           | `nome_municipio_prova`                    |
-| `sigla_`    | siglas                                      | `sigla_estado_escola`                     |
-| `tipo_`     | variáveis categóricas de classificação      | `tipo_adm_escola`                         |
-| `faixa_`    | categorias ordenadas por intervalo          | `faixa_renda`, `faixa_etaria`             |
-| `qtd_`      | quantidades                                 | `qtd_computadores`                        |
-| `tem_`      | variáveis sim/não sobre posse ou acesso     | `tem_internet`                            |
-| `vetor_`    | cadeias de caracteres questão a questão     | `vetor_respostas_cn`, `vetor_gabarito_cn` |
-| `param_`    | parâmetros do modelo da TRI de cada item    | `param_a`, `param_b`, `param_c`           |
+| Prefixo                | Uso                                         | Exemplo                                   |
+| ---------------------- | ------------------------------------------- | ----------------------------------------- |
+| `nota_`                | notas das provas e da redação               | `nota_cn`, `nota_redacao_c1`              |
+| `presenca_`            | presença em cada prova                      | `presenca_cn`                             |
+| `codigo_`              | códigos numéricos (municípios, UFs, provas) | `codigo_municipio_escola`                 |
+| `nome_`                | nomes por extenso                           | `nome_municipio_prova`                    |
+| `sigla_`               | siglas                                      | `sigla_estado_escola`                     |
+| `tipo_`                | variáveis categóricas de classificação      | `tipo_adm_escola`                         |
+| `faixa_`               | categorias ordenadas por intervalo          | `faixa_renda`, `faixa_etaria`             |
+| `qtd_`                 | quantidades                                 | `qtd_computadores`                        |
+| `tem_`                 | variáveis sim/não sobre posse ou acesso     | `tem_internet`                            |
+| `vetor_`               | cadeias de caracteres questão a questão     | `vetor_respostas_cn`, `vetor_gabarito_cn` |
+| `param_`               | parâmetros do modelo da TRI de cada item    | `param_a`, `param_b`, `param_c`           |
+| `qtd_`                 | quantidades e contagens                     | `qtd_computadores`, `qtd_inscritos`       |
+| `taxa_`                | proporções de 0 a 1                         | `taxa_ausencia_dia2`                      |
+| `media_`               | médias                                      | `media_nota_cn`                           |
+| `desvio_padrao_`       | desvios-padrão (amostrais)                  | `desvio_padrao_nota_cn`                   |
+| `p25_`, `p50_`, `p75_` | percentis                                   | `p50_nota_cn`                             |
 
 **Sufixos de área** (siglas oficiais do INEP)
 
@@ -87,6 +93,8 @@ As competências da redação usam `_c1` a `_c5` (ex.: `nota_redacao_c3`).
 
 - 2026-11-19: o mascaramento de `CO_ESCOLA` foi verificado nos dados. O código não é apagado, e sim substituído por uma máscara, e as demais colunas da escola continuam reais. Ajustados o contexto e a consequência sobre escolas pequenas.
 
+- 2026-11-20: a quebra de série passa a trazer os números de MG (parcela de concluintes com escola em 2020–2023 e linhas da `fct_agregada` em 2023 e 2024), além dos números nacionais.
+
 ### Contexto
 
 A partir de 2024, o INEP divide os microdados do ENEM em duas tabelas:
@@ -124,7 +132,8 @@ Ao mesmo tempo, `RESULTADOS` passou a trazer `CO_ESCOLA` (vindo do Censo Escolar
 
 ### Consequências
 
-- **Quebra de série entre 2023 e 2024.** Em 2020–2023, só 65–72% dos concluintes no ano têm escola preenchida; em 2024–2025, cerca de 97% (Brasil: 1,57 de 1,62 milhão em 2024; 1,74 de 1,81 milhão em 2025), porque a escola passou a vir do Censo Escolar pelo CPF. A população "com escola" de 2024–2025 é mais ampla, e os concluintes que antes ficavam sem escola provavelmente não são aleatórios. Comparações entre os dois períodos precisam mencionar essa mudança.
+- **Quebra de série entre 2023 e 2024.** Em 2020–2023, a escola é informada pelo participante; em 2024–2025, vem do Censo Escolar pelo CPF. No Brasil, a parcela de concluintes no ano com escola preenchida passa de 65–72% para cerca de 97% (1,57 de 1,62 milhão em 2024; 1,74 de 1,81 milhão em 2025). Em MG, entre os concluintes da análise individual, a parcela com escola mineira em 2020–2023 é de 57,1% (2020), 66,7% (2021), 68,6% (2022) e 61,1% (2023). Na população agregada (`fct_agregada`), isso aparece como um salto de 66.972 linhas em 2023 para 129.698 em 2024. A população "com escola" de 2024–2025 é mais ampla, e os concluintes que antes ficavam sem escola provavelmente não são aleatórios. Comparações entre os dois períodos precisam mencionar essa mudança.
+
 - **Duas populações em 2020–2023.** A análise individual usa todos os concluintes no ano; a agregada, só os 65–72% com escola preenchida. Os números de uma e de outra não batem exatamente nos mesmos anos, e a diferença vem desse recorte.
 - **Escolas pequenas ficam de fora das análises por escola.** Escolas com menos de 10 participantes têm o código substituído por uma máscara (`600xxxxx`), que não se liga ao Censo Escolar. Em MG, são 565 escolas em 2024 e 489 em 2025. Os alunos dessas escolas continuam nas análises por município, rede e localização, porque essas colunas não são mascaradas. A perda tende a afetar mais as escolas rurais e do interior.
 - **As máscaras não se repetem entre os anos.** Não é possível acompanhar a mesma escola mascarada de 2024 para 2025.
@@ -208,6 +217,7 @@ Mesmo entre escolas com código real, o número de presentes em CN pode ser pequ
 - O número de escolas analisadas é menor que o total de escolas mineiras na base; o tamanho do corte é registrado na Etapa 2.
 - Médias por escola ficam mais estáveis, ao custo de excluir as menores escolas.
 - O mínimo de 10 presentes é o mesmo usado para suprimir grupos no app, mantendo um único critério de tamanho mínimo no projeto.
+- Tamanho do corte de 10 participantes com nota: das escolas mineiras com código real, ficaram 2.463 de 2.761 em 2024 (10,8% excluídas) e 2.650 de 3.008 em 2025 (11,9% excluídas).
 
 ## D005 — Tratamento de nulos e não respostas
 
