@@ -201,6 +201,8 @@ Os testes 6 e 8 usam a população **antes** do recorte de UF da D007 (concluint
 - Decodificação das respostas por questão e raio-X dos itens (Etapa 5)
 - Cruzamento com o Censo Escolar (Etapa 4)
 - Exportação de JSONs para o app (Etapa 6)
+- Arredondamento das métricas para exportação (Etapa 6): a soma em paralelo do DuckDB gera diferenças na 12ª casa decimal entre builds.
+- Conferência das 38 linhas de `agg_municipio_ano` com `taxa_ausencia_dia2` nula contra a regra de supressão do app (Etapa 6).
 
 ## 10. Decisões tomadas na D007
 
