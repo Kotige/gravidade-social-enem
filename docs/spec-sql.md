@@ -49,6 +49,7 @@ sql/
 │   ├── 11_fct_individual.sql
 │   └── 12_fct_agregada.sql
 ├── agregada/
+│   ├── 20_macros.sql
 │   ├── 21_agg_municipio_ano.sql
 │   ├── 22_agg_rede_ano.sql
 │   └── 23_agg_escola_ano.sql
@@ -59,6 +60,7 @@ sql/
 - Um arquivo por tabela ou view, com um comentário no topo dizendo o que ela contém e quais decisões aplica (ex.: `-- aplica D005, D006`).
 - O prefixo numérico define a ordem de execução.
 - `00_macros.sql` define macros escalares do DuckDB com as regras de recodificação compartilhadas pelas views: escola e presença (5.1) e questionário (5.2). Cada macro tem o nome da coluna derivada que produz e recebe as colunas originais como argumentos. As views só aplicam as macros, sem repetir as regras.
+- `20_macros.sql` define, do mesmo modo, macros de agregação com as métricas comuns às tabelas `agg_` (seção 7). Cada macro tem o nome da métrica que produz.
 - As views leem os Parquets com `hive_partitioning = false`, porque `ano` já está gravado nos arquivos como `SMALLINT`, e a partição hive o sobrescreveria com `BIGINT`.
 - `scripts/build_db.py` só executa os arquivos em ordem e roda os testes; toda a lógica fica nos `.sql`.
 
@@ -139,12 +141,20 @@ A coluna `periodo` vale `'2020-2023'` ou `'2024-2025'`, para lembrar a quebra de
 
 Todas as tabelas guardam o `n` de cada grupo. A supressão de grupos pequenos (menos de 10) é aplicada só na exportação para o app, e não aqui.
 
-Fórmulas comuns:
+Todas as tabelas têm `ano` e `periodo` (vindo da `fct_agregada`), seguidos das colunas do grupo e das métricas abaixo, comuns às três tabelas:
 
-- taxa de ausência no 2º dia: `count(presente_dia1 AND NOT presente_cn) / count(presente_dia1)`;
-- desvio-padrão amostral (`stddev_samp`);
-- percentis com `quantile_cont`;
-- média, desvio-padrão e percentis calculados só sobre `tem_nota_cn = true`.
+| Coluna                  | Regra                                                                                     |
+| ----------------------- | ----------------------------------------------------------------------------------------- |
+| `qtd_inscritos`         | `count(*)`                                                                                |
+| `qtd_presentes_dia1`    | participantes com `presente_dia1`                                                         |
+| `qtd_presentes_cn`      | participantes com `presente_cn`                                                           |
+| `taxa_ausencia_dia2`    | `count(presente_dia1 AND NOT presente_cn) / count(presente_dia1)`; proporção de 0 a 1, nula quando não há presentes no 1º dia |
+| `qtd_com_nota_cn`       | participantes com `tem_nota_cn`                                                           |
+| `media_nota_cn`         | média de `nota_cn`                                                                        |
+| `desvio_padrao_nota_cn` | desvio-padrão amostral (`stddev_samp`) de `nota_cn`                                       |
+| `p25_nota_cn`, `p50_nota_cn`, `p75_nota_cn` | percentis de `nota_cn` com `quantile_cont`                            |
+
+Média, desvio-padrão e percentis são calculados só sobre `tem_nota_cn = true`.
 
 ### 7.1 `agg_municipio_ano`
 
@@ -179,6 +189,10 @@ Os testes 6 e 8 usam a população **antes** do recorte de UF da D007 (concluint
 9. `item_adaptado` sem nulos em todos os anos.
 10. Totais de `fct_individual` por ano: 125.357 (2020), 96.355 (2021), 100.405 (2022) e 109.571 (2023).
     Os testes 6 a 8 e 10 usam números obtidos em `notebooks/00_pendencias.ipynb` e garantem que a camada SQL reproduz o que foi verificado à mão.
+
+**Integridade do recorte de UF**
+
+11. `sigla_estado_prova` nunca nula em `stg_base_unica`, `stg_resultados` e `stg_participantes`, para que o filtro de UF da `fct_individual` não descarte ninguém em silêncio.
 
 ## 9. Fora do escopo
 
