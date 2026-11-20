@@ -11,5 +11,5 @@ motivo_abandono,TX_MOTIVO_ABAN,,sim
 param_a,NU_PARAM_A,TRI: discriminação,sim
 param_b,NU_PARAM_B,TRI: dificuldade,sim
 param_c,NU_PARAM_C,TRI: acerto ao acaso,sim
-item_adaptado,IN_ITEM_ADAPTADO,,sim
+item_adaptado,IN_ITEM_ADAPTADO,em 2021 o INEP deixou nulo no lugar de 0 (não adaptado); converter para 0 na limpeza,sim
 lingua,TP_LINGUA,só se aplica a LC,não

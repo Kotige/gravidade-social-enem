@@ -76,6 +76,6 @@ qtd_celulares,Q022,Q022,Q022,Q022,Q022,Q022,participantes,2024 tem D = três ou 
 tem_telefone_fixo,Q023,Q023,Q023,Q023,,,,item removido em 2024,não
 qtd_computadores,Q024,Q024,Q024,Q024,Q021,Q021,participantes,acesso a recursos de estudo; 2024+: computador/notebook; categorias iguais,sim
 tem_internet,Q025,Q025,Q025,Q025,Q020,Q020,participantes,acesso a recursos de estudo; 2024+: pergunta restrita a wi-fi,sim
-codigo_escola,,,,,CO_ESCOLA,CO_ESCOLA,resultados,novo em 2024; sem equivalente em 2020-2023; vem do Censo Escolar; mascarado se a escola tem menos de 10 participantes (perde escolas pequenas),sim
+codigo_escola,,,,,CO_ESCOLA,CO_ESCOLA,resultados,novo em 2024; vem do Censo Escolar; escolas com menos de 10 participantes têm o código substituído por máscara no formato 600xxxxx (demais colunas da escola continuam reais),sim
 possui_renda,,,,,Q006,Q006,participantes,novo em 2024; renda própria do participante,não
 tipo_escola_questionario,,,,,Q023,Q023,participantes,novo em 2024; trajetória pública/privada com ou sem bolsa; substitui TP_ESCOLA,não
