@@ -1,0 +1,180 @@
+# Especificação do modelo SQL
+
+Script: `scripts/build_db.py`
+Etapa do plano: 02 - Limpeza e modelagem em SQL
+Relacionado: D001 a D007 em `docs/decisoes.md`, `docs/spec-ingestao.md`
+
+## 1. Objetivo
+
+Construir, a partir dos Parquets da ingestão, um banco DuckDB com uma camada de dados limpa, recodificada e documentada. Todas as análises das Etapas 3 a 5 e os dados do app partem dessas tabelas.
+
+A camada aplica as decisões D004 a D007 (recodificação, nulos, escolas mascaradas, UF e presença) e as populações da D002. Nenhuma análise estatística é feita aqui.
+
+## 2. Entradas
+
+Parquets gerados pela ingestão (`data/parquet/`):
+
+| Pasta            | Anos      |
+| ---------------- | --------- |
+| `base_unica/`    | 2020–2023 |
+| `participantes/` | 2024–2025 |
+| `resultados/`    | 2024–2025 |
+| `itens/`         | 2020–2025 |
+
+## 3. Saída
+
+Um único arquivo `data/enem.duckdb` (já ignorado pelo Git), com três camadas:
+
+| Camada    | Prefixo | Materialização | Papel                                     |
+| --------- | ------- | -------------- | ----------------------------------------- |
+| staging   | `stg_`  | view           | tipos, recodificações e colunas derivadas |
+| analítica | `fct_`  | tabela         | populações de análise definidas na D002   |
+| agregada  | `agg_`  | tabela         | resumos por município, rede e escola      |
+
+O banco é recriado do zero a cada execução (idempotente).
+
+## 4. Organização dos arquivos
+
+```
+sql/
+├── staging/
+│   ├── 01_stg_base_unica.sql
+│   ├── 02_stg_resultados.sql
+│   ├── 03_stg_participantes.sql
+│   └── 04_stg_itens.sql
+├── analitica/
+│   ├── 11_fct_individual.sql
+│   └── 12_fct_agregada.sql
+├── agregada/
+│   ├── 21_agg_municipio_ano.sql
+│   ├── 22_agg_rede_ano.sql
+│   └── 23_agg_escola_ano.sql
+└── testes/
+    └── *.sql
+```
+
+- Um arquivo por tabela ou view, com um comentário no topo dizendo o que ela contém e quais decisões aplica (ex.: `-- aplica D005, D006`).
+- O prefixo numérico define a ordem de execução.
+- `scripts/build_db.py` só executa os arquivos em ordem e roda os testes; toda a lógica fica nos `.sql`.
+
+## 5. Camada staging
+
+Todas as views de staging mantêm as colunas originais da ingestão e acrescentam as colunas derivadas abaixo. Os códigos das categorias devem ser conferidos no dicionário de cada ano antes da implementação.
+
+### 5.1 Colunas derivadas comuns (`stg_base_unica` e `stg_resultados`)
+
+| Coluna             | Regra                                                                     | Decisão |
+| ------------------ | ------------------------------------------------------------------------- | ------- |
+| `tem_escola`       | `sigla_estado_escola IS NOT NULL`                                         | D002    |
+| `escola_mg`        | `sigla_estado_escola = 'MG'`                                              | D004    |
+| `escola_mascarada` | `codigo_escola` começa com `6`; nulo se não há escola; nulo em 2020–2023  | D004    |
+| `rede`             | `federal` (1), `estadual_municipal` (2, 3), `privada` (4)                 | D006    |
+| `localizacao`      | `urbana` (1), `rural` (2)                                                 | —       |
+| `presente_dia1`    | `presenca_lc` ou `presenca_ch` em (`'1'`, `'2'`): presente ou eliminado   | D007    |
+| `presente_cn`      | `presenca_cn` em (`'1'`, `'2'`): compareceu ao 2º dia (usar na abstenção) | D007    |
+| `tem_nota_cn`      | `presenca_cn = '1'`: tem nota em CN (usar nas análises de nota)           | D007    |
+
+Em `stg_base_unica`, `codigo_escola` não existe; a coluna é criada como nula para que as duas views tenham a mesma estrutura.
+
+### 5.2 Colunas derivadas do questionário (`stg_base_unica`, `stg_participantes`)
+
+| Coluna                   | Regra                                                                                                        | Decisão    |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------ | ---------- |
+| `concluinte_ano`         | `situacao_conclusao = '2' AND treineiro = '0'`                                                               | D002       |
+| `tem_questionario`       | `faixa_renda IS NOT NULL`                                                                                    | D005       |
+| `tipo_escola_rec`        | `publica` (2), `privada` (3); `1` vira nulo                                                                  | D006       |
+| `escolaridade_pai_cat`   | `fund_incompleto` (A–C), `fund_completo` (D), `medio_completo` (E), `superior_completo` (F–G), `nao_sei` (H) | D005, D006 |
+| `escolaridade_mae_cat`   | idem                                                                                                         | D005, D006 |
+| `escolaridade_pai_nivel` | 1 a 4 conforme a categoria; nulo para `nao_sei`                                                              | D006       |
+| `escolaridade_mae_nivel` | idem                                                                                                         | D006       |
+| `escolaridade_max_pais`  | maior nível entre pai e mãe; usa o conhecido se só um for; `nao_sei` se ambos                                | D006       |
+| `ocupacao_pai_cat`       | `grupo_a` … `grupo_e` (A–E), `nao_sei` (F); categoria nominal                                                | D005, D006 |
+| `ocupacao_mae_cat`       | idem                                                                                                         | D005, D006 |
+| `renda_ponto_medio_sm`   | ponto médio da faixa conforme a tabela da D006                                                               | D006       |
+| `renda_per_capita_sm`    | `renda_ponto_medio_sm / qtd_moradores`                                                                       | D006       |
+| `faixa_renda_per_capita` | `ate_meio_sm`, `meio_a_1_sm`, `1_a_2_sm`, `acima_2_sm`                                                       | D006       |
+
+Em 2024–2025, a renda vem da `Q007` (já renomeada para `faixa_renda` na ingestão), com as mesmas faixas; conferir no dicionário.
+
+### 5.3 `stg_itens`
+
+| Coluna          | Regra                   | Decisão |
+| --------------- | ----------------------- | ------- |
+| `item_adaptado` | nulo vira `'0'` em 2021 | D005    |
+| `item_valido`   | `item_abandonado = '0'` | —       |
+
+## 6. Camada analítica
+
+### 6.1 `fct_individual` (2020–2023)
+
+Contém todas as colunas de `stg_base_unica` necessárias às perguntas Q1, Q3 e Q4. Os concluintes sem questionário permanecem na tabela, marcados por `tem_questionario = false`, e são excluídos apenas nas análises que usam o questionário (D005).
+
+População da análise individual (D002):
+
+- `concluinte_ano = true`;
+- UF da escola = MG quando a escola existir; senão, UF da prova = MG (D007).
+
+### 6.2 `fct_agregada` (2020–2025)
+
+População das análises agregadas (D002): participantes com `tem_escola = true` e `escola_mg = true`. União de `stg_base_unica` (2020–2023) e `stg_resultados` (2024–2025), só com as colunas presentes nas duas: `ano`, colunas de escola, `rede`, `localizacao`, `escola_mascarada`, presenças, `codigo_prova_cn`, `nota_cn`, `vetor_respostas_cn`, `vetor_gabarito_cn`.
+
+Acrescenta a coluna `periodo`: `'2020-2023'` ou `'2024-2025'`, para lembrar a quebra de série registrada na D002.
+
+## 7. Camada agregada
+
+Todas as tabelas guardam o `n` de cada grupo. A supressão de grupos pequenos (menos de 10) é aplicada só na exportação para o app, e não aqui.
+
+### 7.1 `agg_municipio_ano`
+
+Por `ano` e município da escola (a partir de `fct_agregada`): inscritos, presentes no 1º dia (`presente_dia1`), presentes no 2º dia (`presente_cn`), taxa de ausência no 2º dia entre os presentes no 1º, participantes com nota (`tem_nota_cn`) e média, desvio-padrão e percentis 25, 50 e 75 de `nota_cn`.
+
+### 7.2 `agg_rede_ano`
+
+As mesmas métricas, por `ano` e `rede`.
+
+### 7.3 `agg_escola_ano` (2024–2025)
+
+As mesmas métricas, por `ano` e `codigo_escola`, só para escolas que atendem à D004: mineiras, não mascaradas e com pelo menos 10 participantes com nota em CN (`tem_nota_cn`).
+
+## 8. Testes
+
+Cada arquivo em `sql/testes/` é uma consulta que retorna **zero linhas quando o teste passa**. O `build_db.py` executa todos ao final e falha se algum retornar linhas.
+
+**Integridade**
+
+1. `numero_inscricao` único em `fct_individual`.
+2. Colunas recodificadas só contêm os valores previstos (ex.: `rede` ∈ {`federal`, `estadual_municipal`, `privada`}).
+3. `renda_per_capita_sm >= 0` quando não nula.
+4. `escola_mascarada` sempre nula em 2020–2023.
+5. `escolaridade_*_nivel` nulo se, e somente se, a categoria for `nao_sei` ou nula.
+   **Conferência com as investigações das pendências**
+
+Os testes 6 e 8 usam a população **antes** do recorte de UF da D007 (concluintes de `stg_base_unica`, com `concluinte_ano = true`). O teste 10 usa a população **depois** do recorte (`fct_individual`).
+
+6. Concluintes de 2020 em `stg_base_unica`: 125.998, dos quais 1.548 sem questionário.
+7. Escolas mascaradas mineiras em `fct_agregada`: 565 em 2024 e 489 em 2025.
+8. Média de `nota_cn` dos concluintes de 2020 em `stg_base_unica`, com questionário e com nota em CN (`tem_nota_cn`): 505,2, com tolerância de 0,1.
+9. `item_adaptado` sem nulos em todos os anos.
+10. Totais de `fct_individual` por ano: 125.357 (2020), 96.355 (2021), 100.405 (2022) e 109.571 (2023).
+    Os testes 6 a 8 e 10 usam números obtidos em `notebooks/00_pendencias.ipynb` e garantem que a camada SQL reproduz o que foi verificado à mão.
+
+## 9. Fora do escopo
+
+- Índice de bens (Etapa 4)
+- Modelos estatísticos (Etapa 4)
+- Decodificação das respostas por questão e raio-X dos itens (Etapa 5)
+- Cruzamento com o Censo Escolar (Etapa 4)
+- Exportação de JSONs para o app (Etapa 6)
+
+## 10. Decisões tomadas na D007
+
+1. **UF da análise individual:** UF da escola quando existir; senão, UF da prova.
+2. **Eliminados:** contam como presentes na abstenção (`presente_dia1`, `presente_cn`) e ficam fora das análises de nota (`tem_nota_cn`).
+3. **Presente no 1º dia:** presente ou eliminado em LC **ou** em CH.
+
+## 11. Requisitos técnicos
+
+- DuckDB; os arquivos `.sql` não dependem de Python.
+- Limite de memória de 3 GB, como na ingestão.
+- Código e comentários em inglês; nomes de colunas em português (D001).
+- Valores das categorias recodificadas em minúsculas, sem acentos (ex.: `estadual_municipal`, `nao_sei`).

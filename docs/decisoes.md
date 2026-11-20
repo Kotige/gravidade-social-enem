@@ -10,6 +10,7 @@ Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão t
 | D004 | 2026-11-19 | Escolas mascaradas e recorte das análises por escola  | Aceita |
 | D005 | 2026-11-20 | Tratamento de nulos e não resposta                    | Aceita |
 | D006 | 2026-11-20 | Recodificação das variáveis socioeconômicas e da rede | Aceita |
+| D007 | 2026-11-20 | Recorte de UF e regras de presença                    | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -172,6 +173,12 @@ Sobre o filtro: cada participante tem duas UFs, a da prova (`SG_UF_PROVA`) e a d
 
 **Status:** Aceita
 
+**Atualizações:**
+
+- 2026-11-20: "presentes em CN" passa a significar "com nota em CN"
+  (`tem_nota_cn`), conforme a distinção entre comparecimento e nota
+  da D007.
+
 ### Contexto
 
 Em 2024-2025, escolas com menos de 10 participantes no exame têm o `CO_ESCOLA` substituído por uma máscara no formato `600xxxxx`, que não se liga ao Censo Escolar (ver D002). As demais colunas da escola continuam reais.
@@ -321,3 +328,44 @@ Para descrição e para o app, `faixa_renda_per_capita` em quatro faixas:
 - A renda per capta é uma aproximação: usa o ponto médio da faixa e o número de moradores de clarado.
 - O corte de 1/2 SM per capita coincide com a referência de baixa renda do Cadastro Único, o que facilita a comunicação dos resultados.
 - A escolaridade dos pais pode entrar nos modelos como escala ordinal (níveis de 1 a 4) ou como categorias; a escolha fica para a etapa 4.
+
+## D007 — Recorte de UF e regras de presença
+
+**Data:** 2026-11-20
+
+**Status:** Aceita
+
+### Contexto
+
+A especificação do modelo SQL (`docs/spec-sql.md`) deixou três definições em aberto: qual UF define a população da análise individual (a D003 adiou essa escolha para a Etapa 2), como tratar participantes eliminados e o que conta como presença no 1º dia.
+
+Entre os concluintes do ano (2020–2023), a combinação de UF da escola e UF da prova é:
+
+| Ano  | Escola MG, prova MG | Escola MG, prova fora | Escola fora, prova MG | Sem escola, prova MG |
+| ---- | ------------------- | --------------------- | --------------------- | -------------------- |
+| 2020 | 70.875              | 739                   | 641                   | 53.743               |
+| 2021 | 63.409              | 827                   | 818                   | 32.119               |
+| 2022 | 68.046              | 823                   | 623                   | 31.536               |
+| 2023 | 66.261              | 711                   | 611                   | 42.599               |
+
+Na presença do 2º dia (CN), os eliminados são poucos: 44 em 2020, 51 em 2021, 50 em 2022 e 76 em 2023. No 1º dia, as presenças em LC e em CH são idênticas para todos os concluintes de 2020–2023 (105.063 faltaram às duas, 328.780 estiveram presentes nas duas e 538 foram eliminados nas duas): a presença é registrada por sessão.
+
+### Decisão
+
+- **UF da análise individual:** vale a UF da escola quando ela existir; senão, a UF da prova. Entram os concluintes de escola mineira (mesmo que tenham feito a prova fora) e os concluintes sem escola que fizeram a prova em MG. Ficam de fora os de escola de outro estado.
+- **Eliminados:** contam como presentes no cálculo da abstenção, porque compareceram; ficam fora das análises de nota, porque não têm nota.
+- **Presente no 1º dia:** presente ou eliminado em LC **ou** em CH.
+
+### Alternativas consideradas
+
+- **Só a UF da prova:** descartada porque incluiria alunos de escolas de outros estados e excluiria alunos de escolas mineiras que fizeram a prova fora.
+- **Prova ou escola em MG:** descartada porque incluiria alunos de escolas de outros estados.
+- **Eliminados como ausentes:** descartada porque misturaria dois fenômenos diferentes, não comparecer e ser eliminado, enquanto a Q4 trata do comparecimento.
+- **Presença em LC e em CH:** equivalente nos dados, mas a regra com "ou" é mais robusta caso um ano futuro registre as provas separadamente.
+
+### Consequências
+
+- A população da análise individual tem 125.357 concluintes em 2020, 96.355 em 2021, 100.405 em 2022 e 109.571 em 2023.
+- O critério é coerente com o da análise agregada, que também usa a escola em MG.
+- Os casos de fronteira (escola e prova em UFs diferentes) somam cerca de 1% dos concluintes, então a escolha pouco altera os resultados.
+- Para os concluintes sem escola preenchida (31% a 43% conforme o ano), a UF da prova é uma aproximação do local onde estudam.
