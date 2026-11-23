@@ -1,7 +1,5 @@
 # Perguntas do projeto
 
-# Perguntas do projeto
-
 **Pergunta central:** quanto da nota de Ciências da Natureza de um
 estudante mineiro é explicado pela sua origem (renda, escolaridade
 dos pais, rede de ensino e município)? E em quais conteúdos essa
