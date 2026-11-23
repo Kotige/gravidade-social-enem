@@ -15,6 +15,12 @@ Usage:
                                 titulo="...", marcar_quebra=True)
     gr.salvar(fig, "nome_do_grafico")
 
+The chart palette is an extension of the brand palette, adjusted for
+contrast and color vision deficiency: same hues where possible, with
+chroma and lightness changed so the colors stay distinguishable on a
+chart. The exact brand colors remain available in CORES for non-data
+elements.
+
 Color choices (checked with an OKLab/CVD validator against the #f8f7fa
 background, simulating protanopia and deuteranopia, all pairs compared):
     - CORES_REDE: the brand hues of "principal" and "salvia" with chroma
@@ -24,6 +30,11 @@ background, simulating protanopia and deuteranopia, all pairs compared):
     - cores_sequenciais(n): one indigo hue (brand hue 273 deg), OKLCH
       lightness 0.74 -> 0.29. Monotone, light end >= 2:1 on the background,
       adjacent lightness steps >= 0.06 for n <= 8.
+    - CORES["nao_sei"]: neutral gray (#86858d, 3.4:1) for categories
+      outside the ordered levels (FORA_DA_SEQUENCIA, e.g. "nao_sei").
+      They never take a ramp step, always come after the ordered levels,
+      sit apart from them in bar charts (extra gap) and use a dashed line
+      in densities and time series, so they are not read as one more level.
 """
 
 from __future__ import annotations
@@ -59,7 +70,15 @@ CORES = {
     "salvia": "#6f8a6b",
     "ocre": "#c08a3e",
     "neutro": "#a3a1ab",  # non-highlighted series when a highlight is used
+    "nao_sei": "#86858d",  # categories outside the ordered levels, 3.4:1
 }
+
+# Categories that are not a level of an ordered scale (e.g. "don't know"
+# in schooling). They get CORES["nao_sei"] and are kept apart from the levels.
+FORA_DA_SEQUENCIA = ("nao_sei",)
+
+# Extra space (in bar slots) between ordered levels and FORA_DA_SEQUENCIA.
+_ESPACO_FORA = 0.5
 
 DESTAQUE = CORES["ocre"]
 
@@ -207,28 +226,50 @@ def _cores_grupos(
         if len(cores) < len(grupos):
             raise ValueError("fewer colors than groups")
         return dict(zip(grupos, cores))
+    fora = {g: CORES["nao_sei"] for g in grupos if _fora(g)}
+    niveis = [g for g in grupos if not _fora(g)]
     if sequencial:
-        return dict(zip(grupos, cores_sequenciais(len(grupos))))
-    if all(g in CORES_REDE for g in grupos):
-        return {g: CORES_REDE[g] for g in grupos}
-    if len(grupos) > len(CATEGORICA):
+        return {**dict(zip(niveis, cores_sequenciais(len(niveis)))), **fora} if niveis else fora
+    if all(g in CORES_REDE for g in niveis):
+        return {**{g: CORES_REDE[g] for g in niveis}, **fora}
+    if len(niveis) > len(CATEGORICA):
         raise ValueError(
-            f"{len(grupos)} groups but only {len(CATEGORICA)} categorical colors "
+            f"{len(niveis)} groups but only {len(CATEGORICA)} categorical colors "
             "are validated; pass `cores`, use sequencial=True for ordered bands, "
             "or reduce the number of groups."
         )
-    return dict(zip(grupos, CATEGORICA))
+    return {**dict(zip(niveis, CATEGORICA)), **fora}
+
+
+def _fora(grupo) -> bool:
+    """True for categories outside the ordered levels (e.g. 'nao_sei')."""
+    return grupo in FORA_DA_SEQUENCIA
+
+
+def _estilo(grupo) -> str | tuple:
+    """Dashed line for FORA_DA_SEQUENCIA, solid otherwise."""
+    return (0, (4, 2)) if _fora(grupo) else "solid"
+
+
+def _fora_para_o_fim(grupos: Sequence) -> list:
+    """Keep the order of the levels and move FORA_DA_SEQUENCIA to the end."""
+    grupos = list(grupos)
+    return [g for g in grupos if not _fora(g)] + [g for g in grupos if _fora(g)]
 
 
 def _ordem_grupos(serie: pd.Series, ordem: Sequence | None) -> list:
+    """Order groups; FORA_DA_SEQUENCIA always goes last."""
     presentes = list(pd.unique(serie.dropna()))
     if ordem is None:
         if all(g in CORES_REDE for g in presentes):
-            return [g for g in CORES_REDE if g in presentes]
-        if isinstance(serie.dtype, pd.CategoricalDtype):
-            return [g for g in serie.cat.categories if g in presentes]
-        return sorted(presentes)
-    return [g for g in ordem if g in presentes]
+            resultado = [g for g in CORES_REDE if g in presentes]
+        elif isinstance(serie.dtype, pd.CategoricalDtype):
+            resultado = [g for g in serie.cat.categories if g in presentes]
+        else:
+            resultado = sorted(presentes)
+    else:
+        resultado = [g for g in ordem if g in presentes]
+    return _fora_para_o_fim(resultado)
 
 
 def _rotulo(grupo, rotulos: Mapping | None) -> str:
@@ -518,12 +559,12 @@ def distribuicoes(
             y = _kde_binned(v, grade, suavizacao)
             if preencher:
                 ax.fill_between(grade, y, color=cor, alpha=0.12, linewidth=0)
-            ax.plot(grade, y, color=cor, linewidth=largura, label=rotulo)
+            ax.plot(grade, y, color=cor, linewidth=largura, label=rotulo, linestyle=_estilo(g))
         else:
             contagem, _ = np.histogram(v, bins=bordas, density=(escala == "densidade"))
             if preencher:
                 ax.stairs(contagem, bordas, fill=True, color=cor, alpha=0.12)
-            ax.stairs(contagem, bordas, color=cor, linewidth=largura, label=rotulo)
+            ax.stairs(contagem, bordas, color=cor, linewidth=largura, label=rotulo, linestyle=_estilo(g))
 
     ax.set_xlim(lo, hi)
     ax.set_ylim(bottom=0)
@@ -624,6 +665,7 @@ def serie_temporal(
                 markersize=6,
                 markeredgecolor=CORES["fundo"],
                 markeredgewidth=1.5,
+                linestyle=_estilo(g),
                 label=rotulo if i == 0 else None,
                 zorder=z,
             )
@@ -735,6 +777,8 @@ def barras_com_n(
     Without `coluna_grupo`: one series. Bars use the main color, or the
         sequential ramp across categories with sequencial=True (ordered
         bands), or ochre for the `destaque` category.
+    Categories in FORA_DA_SEQUENCIA (e.g. "nao_sei") always go last, in
+        gray, separated from the ordered levels by an extra gap.
     With `coluna_grupo`: grouped bars, one color per group (networks get
         CORES_REDE); `destaque` then names a group.
     Each bar gets its value (optional) and its n at the bar end; values
@@ -749,8 +793,10 @@ def barras_com_n(
 
     categorias = _ordem_grupos(dados[coluna_categoria], ordem)
     if ordem is None and not isinstance(dados[coluna_categoria].dtype, pd.CategoricalDtype):
-        categorias = list(pd.unique(dados[coluna_categoria]))  # keep input order
-    pos = np.arange(len(categorias))
+        # keep input order
+        categorias = _fora_para_o_fim(pd.unique(dados[coluna_categoria]))
+    pos = np.arange(len(categorias), dtype=float)
+    pos += np.array([_ESPACO_FORA if _fora(c) else 0.0 for c in categorias])
 
     if coluna_grupo:
         grupos = _ordem_grupos(dados[coluna_grupo], ordem_grupos)
@@ -765,6 +811,7 @@ def barras_com_n(
             paleta_cat = _cores_grupos(categorias, cores, sequencial)
         else:
             paleta_cat = {c: CORES["principal"] for c in categorias}
+        paleta_cat.update({c: CORES["nao_sei"] for c in categorias if _fora(c)})
 
     k = len(grupos)
     if prefixo_n is None:
