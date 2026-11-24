@@ -4,7 +4,7 @@
 -- periodo flags the series break between 2023 and 2024 (D002).
 -- numero_inscricao is NULL in 2024-2025 and numero_sequencial is NULL in
 -- 2020-2023: the two periods use different row identifiers.
--- Applies D002, D004, D007.
+-- Applies D002, D004, D007, D008.
 
 CREATE OR REPLACE TABLE fct_agregada AS
 SELECT
@@ -32,6 +32,7 @@ SELECT
     presente_dia1,
     presente_cn,
     tem_nota_cn,
+    cartao_em_branco,
     -- test
     codigo_prova_cn,
     nota_cn,
@@ -64,6 +65,7 @@ SELECT
     presente_dia1,
     presente_cn,
     tem_nota_cn,
+    cartao_em_branco,
     codigo_prova_cn,
     nota_cn,
     vetor_respostas_cn,

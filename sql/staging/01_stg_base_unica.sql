@@ -3,7 +3,7 @@
 -- school, presence and questionnaire derived columns (spec-sql 5.1, 5.2)
 -- using the macros in 00_macros.sql.
 -- codigo_escola does not exist in 2020-2023 and is created as NULL.
--- Applies D002, D004, D005, D006, D007.
+-- Applies D002, D004, D005, D006, D007, D008.
 
 CREATE OR REPLACE VIEW stg_base_unica AS
 WITH src AS (
@@ -25,7 +25,8 @@ SELECT
     localizacao(tipo_localizacao_escola) AS localizacao,
     presente_dia1(presenca_lc, presenca_ch) AS presente_dia1,
     presente_cn(presenca_cn) AS presente_cn,
-    tem_nota_cn(presenca_cn) AS tem_nota_cn,
+    tem_nota_cn(presenca_cn, nota_cn) AS tem_nota_cn,
+    cartao_em_branco(presenca_cn, nota_cn) AS cartao_em_branco,
     -- Questionnaire (5.2)
     concluinte_ano(situacao_conclusao, treineiro) AS concluinte_ano,
     tem_questionario(faixa_renda) AS tem_questionario,

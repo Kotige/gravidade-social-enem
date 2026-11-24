@@ -3,7 +3,7 @@
 -- school state = MG when the school exists; otherwise test state = MG.
 -- Graduates without questionnaire stay in the table (tem_questionario =
 -- false) and are excluded only in questionnaire analyses (D005).
--- Applies D002, D005, D007.
+-- Applies D002, D005, D007, D008.
 
 CREATE OR REPLACE TABLE fct_individual AS
 SELECT *

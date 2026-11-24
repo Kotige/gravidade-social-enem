@@ -1,7 +1,7 @@
 -- Scalar macros with the recoding rules shared by the staging views
 -- (spec-sql 5.1 and 5.2). Each macro is named after the derived column it
 -- produces and takes the original ingestion columns as arguments.
--- Applies D002, D004, D005, D006, D007.
+-- Applies D002, D004, D005, D006, D007, D008.
 
 -- ---------------------------------------------------------------------------
 -- School and presence (stg_base_unica, stg_resultados)
@@ -42,9 +42,15 @@ CREATE OR REPLACE MACRO presente_dia1(presenca_lc, presenca_ch) AS
 CREATE OR REPLACE MACRO presente_cn(presenca_cn) AS
     presenca_cn IN ('1', '2');
 
--- Only present participants have a CN score (D007).
-CREATE OR REPLACE MACRO tem_nota_cn(presenca_cn) AS
-    presenca_cn = '1';
+-- Only present participants have a CN score (D007); blank answer sheets
+-- (score 0) do not measure proficiency and are left out (D008).
+CREATE OR REPLACE MACRO tem_nota_cn(presenca_cn, nota_cn) AS
+    presenca_cn = '1' AND nota_cn > 0;
+
+-- Present in CN with score 0: blank answer sheet (D008). Still counts as
+-- attendance in presente_cn.
+CREATE OR REPLACE MACRO cartao_em_branco(presenca_cn, nota_cn) AS
+    presenca_cn = '1' AND nota_cn = 0;
 
 -- ---------------------------------------------------------------------------
 -- Questionnaire (stg_base_unica, stg_participantes)
