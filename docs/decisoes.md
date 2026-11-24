@@ -11,6 +11,7 @@ Decisões de projeto do Gravidade Social, em ordem cronológica. Cada decisão t
 | D005 | 2026-11-20 | Tratamento de nulos e não resposta                    | Aceita |
 | D006 | 2026-11-20 | Recodificação das variáveis socioeconômicas e da rede | Aceita |
 | D007 | 2026-11-20 | Recorte de UF e regras de presença                    | Aceita |
+| D008 | 2026-11-24 | Cartões-resposta em branco (nota zero)                | Aceita |
 
 ## D001 — Convenção de nomes das variáveis
 
@@ -385,3 +386,42 @@ Na presença do 2º dia (CN), os eliminados são poucos: 44 em 2020, 51 em 2021,
 - O critério é coerente com o da análise agregada, que também usa a escola em MG.
 - Os casos de fronteira (escola e prova em UFs diferentes) somam cerca de 1% dos concluintes, então a escolha pouco altera os resultados.
 - Para os concluintes sem escola preenchida (31% a 43% conforme o ano), a UF da prova é uma aproximação do local onde estudam.
+
+## D008 — Cartões-resposta em branco (nota zero)
+
+**Data:** 2026-11-24
+
+**Status:** Aceita
+
+### Contexto
+
+A análise exploratória da Q1 revelou participantes presentes na prova de CN (`presenca_cn = '1'`) com nota igual a zero. Nesses casos, o vetor de respostas só tem pontos: o participante compareceu e não marcou nenhuma alternativa. Sem respostas, a TRI não estima proficiência, e a nota fica zero. Não existe nenhuma nota entre 0 e 300; a menor nota positiva fica entre 323 e 364, conforme o ano.
+
+Casos com nota zero entre os participantes com nota:
+
+| Tabela           | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 |
+| ---------------- | ---- | ---- | ---- | ---- | ---- | ---- |
+| `fct_individual` | 7    | 7    | 7    | 404  | —    | —    |
+| `fct_agregada`   | 3    | 7    | 5    | 231  | 9    | 7    |
+
+Em 2023, os casos se distribuem igualmente entre os quatro cadernos regulares de CN (de 91 a 113 casos em cada, cerca de 0,5%). O leia-me e o dicionário de 2023 não mencionam o fenômeno, e sua causa não pode ser identificada com os dados públicos.
+
+O efeito nas médias é pequeno na maioria dos casos, mas chega a cerca de 3 pontos na rede estadual/municipal em 2023, justamente o ano e a rede usados nas comparações de tendência.
+
+### Decisão
+
+- **Cartões em branco ficam fora das análises de nota:** `tem_nota_cn` passa a exigir presença **e** nota maior que zero.
+- **Continuam contando como presença:** `presente_cn` não muda, porque o participante compareceu (mesma lógica da D007).
+- Nova coluna **`cartao_em_branco`**: presente em CN com nota zero, para que esses casos possam ser contados e estudados.
+- Os cartões em branco também ficam fora do raio-X das questões (Q5).
+
+### Alternativas consideradas
+
+- **Manter a nota zero:** descartada porque a nota zero não mede proficiência, e sim a ausência de respostas; mantê-la distorce as médias, sobretudo em 2023.
+- **Categoria própria nas análises de nota:** descartada porque não há uma nota a analisar; a coluna `cartao_em_branco` já permite estudar o grupo separadamente.
+
+### Consequências
+
+- As médias de 2023 sobem, sobretudo na rede estadual/municipal (cerca de 3 pontos); nos demais anos, a mudança é menor que 0,2 ponto.
+- Os valores esperados dos testes que dependem de `tem_nota_cn` precisam ser recalculados, e o corte de escolas da D004 pode mudar um pouco.
+- O aumento de cartões em branco em 2023 fica registrado como observação sem explicação.
