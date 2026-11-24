@@ -51,6 +51,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import font_manager
 from matplotlib.ticker import Formatter, FuncFormatter, MaxNLocator
+from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parents[1]
 FIGURES_DIR = ROOT / "reports" / "figures"
@@ -419,11 +420,15 @@ def _textos(
     if rotulo_y is not None:
         ax.set_ylabel(rotulo_y)
     if nota:
+        # Anchored below the x axis (ticks + label), aligned with the axes'
+        # left edge. Anchoring to the figure edge does not work: with
+        # bbox_inches="tight" the figure box is recomputed to include the
+        # note, so a note placed relative to that box always falls outside it.
         ax.annotate(
             nota,
             xy=(0, 0),
-            xycoords="figure fraction",
-            xytext=(4, -6),
+            xycoords=_ancora_nota(ax),
+            xytext=(0, -8),
             textcoords="offset points",
             ha="left",
             va="top",
@@ -433,15 +438,25 @@ def _textos(
         )
 
 
+def _ancora_nota(ax):
+    """Bbox (display coords) from the axes' left edge to the bottom of the x axis."""
+    def _bbox(renderer):
+        eixo_x = ax.xaxis.get_tightbbox(renderer)
+        y0 = ax.bbox.y0 if eixo_x is None else min(ax.bbox.y0, eixo_x.y0)
+        return Bbox.from_extents(ax.bbox.x0, y0, ax.bbox.x1, ax.bbox.y1)
+
+    return _bbox
+
+
 def _numeros_mono(ax, eixos: str = "xy") -> None:
     """Render numeric tick labels in IBM Plex Mono."""
     for eixo in eixos:
         ax.tick_params(axis=eixo, labelfontfamily=FONTE_NUMERO)
 
 
-def _legenda(ax, n_series: int) -> None:
+def _legenda(ax, n_series: int, mostrar: bool = True) -> None:
     """One-row legend just above the axes, left aligned (>= 2 series)."""
-    if n_series >= 2:
+    if mostrar and n_series >= 2:
         ax.legend(
             loc="lower left",
             bbox_to_anchor=(0, 1),
@@ -495,6 +510,7 @@ def distribuicoes(
     destaque=None,
     mostrar_n: bool = False,
     preencher: bool = True,
+    legenda: bool = True,
     titulo: str | None = None,
     subtitulo: str | None = None,
     rotulo_x: str | None = None,
@@ -511,6 +527,7 @@ def distribuicoes(
         Densities are always normalized to area 1 per group.
     intervalo: (min, max) of the x range; defaults to the data range.
     mostrar_n: append the group's n to its legend label.
+    legenda: show the legend (>= 2 groups); False hides it.
     Rows with missing values are dropped. Returns (fig, ax).
     """
     if tipo not in {"densidade", "histograma"}:
@@ -571,7 +588,7 @@ def distribuicoes(
     ax.xaxis.set_major_formatter(_formatador_eixo())
     ax.yaxis.set_major_formatter(_formatador_eixo())
     _numeros_mono(ax)
-    _legenda(ax, len(grupos) if coluna_grupo else 1)
+    _legenda(ax, len(grupos) if coluna_grupo else 1, legenda)
     _textos(ax, titulo, subtitulo, rotulo_x, rotulo_y, nota)
     return fig, ax
 
@@ -600,6 +617,7 @@ def serie_temporal(
     destaque=None,
     casas_y: int | None = None,
     y_zero: bool = False,
+    legenda: bool = True,
     titulo: str | None = None,
     subtitulo: str | None = None,
     rotulo_x: str | None = None,
@@ -615,7 +633,9 @@ def serie_temporal(
         text written next to it (none by default).
     conectar_quebra: if False, lines are not drawn across the break.
     rotulo_direto: write the group label at the end of each line (applies
-        to up to 4 groups; a legend is always shown for >= 2 groups).
+        to up to 4 groups).
+    legenda: show the legend (>= 2 groups); False hides it, e.g. when the
+        direct labels already identify the groups.
     destaque: one group drawn in ochre; the others turn neutral gray.
     Expects one row per (x, grupo); rows are sorted by x. Returns (fig, ax).
     """
@@ -705,7 +725,7 @@ def serie_temporal(
         _rotulos_finais(ax, finais)
 
     _numeros_mono(ax)
-    _legenda(ax, len(grupos) if grupo else 1)
+    _legenda(ax, len(grupos) if grupo else 1, legenda)
     _textos(ax, titulo, subtitulo, rotulo_x, rotulo_y, nota)
     return fig, ax
 
@@ -761,6 +781,7 @@ def barras_com_n(
     cores: Mapping | Sequence | None = None,
     sequencial: bool = False,
     destaque=None,
+    legenda: bool = True,
     titulo: str | None = None,
     subtitulo: str | None = None,
     rotulo_x: str | None = None,
@@ -780,7 +801,8 @@ def barras_com_n(
     Categories in FORA_DA_SEQUENCIA (e.g. "nao_sei") always go last, in
         gray, separated from the ordered levels by an extra gap.
     With `coluna_grupo`: grouped bars, one color per group (networks get
-        CORES_REDE); `destaque` then names a group.
+        CORES_REDE); `destaque` then names a group. legenda=False hides
+        the group legend.
     Each bar gets its value (optional) and its n at the bar end; values
     use IBM Plex Mono and pt-BR separators. prefixo_n defaults to "n = ",
     or the compact "n=" for vertical bars with 3+ groups, where labels are
@@ -875,7 +897,7 @@ def barras_com_n(
         _numeros_mono(ax, "y")
         ax.tick_params(axis="x", length=0)
 
-    _legenda(ax, k if coluna_grupo else 1)
+    _legenda(ax, k if coluna_grupo else 1, legenda)
     _textos(ax, titulo, subtitulo, rotulo_x, rotulo_y, nota)
     return fig, ax
 
