@@ -81,7 +81,8 @@ Tipos: `qtd_moradores` é convertida para `INTEGER` na própria coluna. Os códi
 | `localizacao`      | `urbana` (1), `rural` (2)                                                 | —       |
 | `presente_dia1`    | `presenca_lc` ou `presenca_ch` em (`'1'`, `'2'`): presente ou eliminado   | D007    |
 | `presente_cn`      | `presenca_cn` em (`'1'`, `'2'`): compareceu ao 2º dia (usar na abstenção) | D007    |
-| `tem_nota_cn`      | `presenca_cn = '1'`: tem nota em CN (usar nas análises de nota)           | D007    |
+| `tem_nota_cn`      | `presenca_cn = '1' AND nota_cn > 0`: tem nota em CN (usar nas análises de nota) | D007, D008 |
+| `cartao_em_branco` | `presenca_cn = '1' AND nota_cn = 0`: presente com cartão-resposta em branco | D008    |
 
 Em `stg_base_unica`, `codigo_escola` não existe; a coluna é criada como nula para que as duas views tenham a mesma estrutura.
 
@@ -132,7 +133,7 @@ População das análises agregadas (D002): participantes com `tem_escola = true
 
 - identificação: `ano`, `periodo`, `numero_inscricao` (nulo em 2024–2025), `numero_sequencial` (nulo em 2020–2023);
 - escola: `codigo_escola`, `codigo_municipio_escola`, `nome_municipio_escola`, `sigla_estado_escola`, `tipo_adm_escola`, `tipo_localizacao_escola`, `tem_escola`, `escola_mg`, `escola_mascarada`, `rede`, `localizacao`;
-- presença: `presenca_cn`, `presenca_ch`, `presenca_lc`, `presente_dia1`, `presente_cn`, `tem_nota_cn`;
+- presença: `presenca_cn`, `presenca_ch`, `presenca_lc`, `presente_dia1`, `presente_cn`, `tem_nota_cn`, `cartao_em_branco`;
 - prova: `codigo_prova_cn`, `nota_cn`, `vetor_respostas_cn`, `vetor_gabarito_cn`.
 
 A coluna `periodo` vale `'2020-2023'` ou `'2024-2025'`, para lembrar a quebra de série registrada na D002.
@@ -185,7 +186,7 @@ Os testes 6 e 8 usam a população **antes** do recorte de UF da D007 (concluint
 
 6. Concluintes de 2020 em `stg_base_unica`: 125.998, dos quais 1.548 sem questionário.
 7. Escolas mascaradas mineiras distintas (`count(DISTINCT codigo_escola)`) em `fct_agregada`: 565 em 2024 e 489 em 2025.
-8. Média de `nota_cn` dos concluintes de 2020 em `stg_base_unica`, com questionário e com nota em CN (`tem_nota_cn`): 505,2, com tolerância de 0,1.
+8. Média de `nota_cn` dos concluintes de 2020 em `stg_base_unica`, com questionário e com nota em CN (`tem_nota_cn`): 505,23, com tolerância de 0,01.
 9. `item_adaptado` sem nulos em todos os anos.
 10. Totais de `fct_individual` por ano: 125.357 (2020), 96.355 (2021), 100.405 (2022) e 109.571 (2023).
     Os testes 6 a 8 e 10 usam números obtidos em `notebooks/00_pendencias.ipynb` e garantem que a camada SQL reproduz o que foi verificado à mão.
@@ -193,6 +194,10 @@ Os testes 6 e 8 usam a população **antes** do recorte de UF da D007 (concluint
 **Integridade do recorte de UF**
 
 11. `sigla_estado_prova` nunca nula em `stg_base_unica`, `stg_resultados` e `stg_participantes`, para que o filtro de UF da `fct_individual` não descarte ninguém em silêncio.
+
+**Integridade dos cartões em branco**
+
+12. Nenhuma linha com `tem_nota_cn = true` e `nota_cn = 0` em `stg_base_unica`, `stg_resultados`, `fct_individual` e `fct_agregada` (D008).
 
 ## 9. Fora do escopo
 
