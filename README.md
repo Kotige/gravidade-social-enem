@@ -36,15 +36,15 @@ dos dados.
 
 ## Andamento
 
-| Etapa | Descrição                                    | Status          |
-| ----- | -------------------------------------------- | --------------- |
-| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída    |
-| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída    |
-| 3     | Análise exploratória                         | 🔄 Em andamento |
-| 4     | Modelagem estatística                        | ⏳ Planejada    |
-| 5     | Raio-X das questões e TRI                    | ⏳ Planejada    |
-| 6     | App interativo (React + Tailwind)            | ⏳ Planejada    |
-| 7     | Relatório e texto de divulgação              | ⏳ Planejada    |
+| Etapa | Descrição                                    | Status                                       |
+| ----- | -------------------------------------------- | -------------------------------------------- |
+| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída                                 |
+| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída                                 |
+| 3     | Análise exploratória                         | 🔄 Em andamento (análise por rede concluída) |
+| 4     | Modelagem estatística                        | ⏳ Planejada                                 |
+| 5     | Raio-X das questões e TRI                    | ⏳ Planejada                                 |
+| 6     | App interativo (React + Tailwind)            | ⏳ Planejada                                 |
+| 7     | Relatório e texto de divulgação              | ⏳ Planejada                                 |
 
 ## Destaques técnicos
 
@@ -163,9 +163,28 @@ Notebooks de análise (notebooks/) e, depois, o app (app/)
 | [`docs/spec-sql.md`](docs/spec-sql.md)           | especificação do modelo SQL e dos testes    |
 | [`docs/fontes.md`](docs/fontes.md)               | origem e procedência dos dados              |
 
+## Primeiros resultados
+
+![Média em Ciências da Natureza por rede de ensino — MG, 2020–2025](reports/figures/q1_media_cn_por_rede.png)
+
+A primeira parte da análise compara as redes de ensino
+([notebook](notebooks/01_q1_tamanho_da_diferenca.ipynb)):
+
+- **A rede estadual/municipal fica bem abaixo das redes federal e privada em
+  todos os anos**, com diferenças de 60 a 93 pontos, cerca de um
+  desvio-padrão das notas.
+- **Federal e privada andam juntas até 2022 e se separam em 2023**, quando a
+  privada sobe e a federal fica estável.
+- **A presença na prova também é desigual:** em 2021, 69% dos inscritos da
+  rede estadual/municipal tiveram nota, contra 92% na federal e 95% na privada.
+
+Essas diferenças descrevem as redes, e não o efeito de estudar em cada uma:
+as redes atendem alunos de origens diferentes. Separar esses fatores é o
+objetivo das próximas etapas.
+
 ## Próximos passos
 
-- Concluir a análise exploratória: diferenças por rede, renda per capita e
+- Concluir a análise exploratória: diferenças por renda per capita e
   escolaridade dos pais (Q1) e o mapa dos municípios (Q2).
 - Modelagem estatística: o que mais pesa na nota (Q3) e quem falta à prova (Q4).
 - Raio-X das questões de Ciências da Natureza e TRI (Q5 e Q6).
