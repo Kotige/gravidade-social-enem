@@ -36,15 +36,15 @@ dos dados.
 
 ## Andamento
 
-| Etapa | Descrição                                    | Status                         |
-| ----- | -------------------------------------------- | ------------------------------ |
-| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída                   |
-| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída                   |
-| 3     | Análise exploratória                         | 🔄 Em andamento (Q1 concluída) |
-| 4     | Modelagem estatística                        | ⏳ Planejada                   |
-| 5     | Raio-X das questões e TRI                    | ⏳ Planejada                   |
-| 6     | App interativo (React + Tailwind)            | ⏳ Planejada                   |
-| 7     | Relatório e texto de divulgação              | ⏳ Planejada                   |
+| Etapa | Descrição                                    | Status                               |
+| ----- | -------------------------------------------- | ------------------------------------ |
+| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída                         |
+| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída                         |
+| 3     | Análise exploratória                         | 🔄 Em andamento (Q1 e Q2 concluídas) |
+| 4     | Modelagem estatística                        | ⏳ Planejada                         |
+| 5     | Raio-X das questões e TRI                    | ⏳ Planejada                         |
+| 6     | App interativo (React + Tailwind)            | ⏳ Planejada                         |
+| 7     | Relatório e texto de divulgação              | ⏳ Planejada                         |
 
 ## Destaques técnicos
 
@@ -165,7 +165,7 @@ Notebooks de análise (notebooks/) e, depois, o app (app/)
 
 ## Primeiros resultados
 
-## Primeiros resultados
+### Rede de ensino, renda per capita e escolaridade dos pais (Q1)
 
 A primeira pergunta (Q1) mede o tamanho da diferença nas notas de Ciências da
 Natureza entre redes de ensino, faixas de renda per capita e níveis de
@@ -197,6 +197,14 @@ escolaridade dos pais.
 Essas diferenças descrevem os grupos, e não o efeito de cada fator: renda,
 escolaridade dos pais e rede de ensino estão ligadas entre si. Separar esses
 fatores é o objetivo das próximas etapas.
+
+### Municípios (Q2)
+
+- **A variação entre municípios é real.** No gráfico de funil, entre 24% e 36% dos municípios com pelo menos 10 alunos ficam fora da faixa esperada pelo acaso (contra ~0,3%), quase todos abaixo da média de MG, e esses desvios se repetem de 2023 para 2025.
+- **Tamanho e região importam.** Municípios maiores têm médias maiores (de 39 a 66 pontos entre os menores e os maiores). As médias mais baixas se concentram no Norte de Minas e nos vales do Jequitinhonha e do Mucuri.
+- **Juiz de Fora** fica cerca de 20 pontos acima da média de MG em todos os anos, mas só 5 a 9 pontos acima das cidades do mesmo porte.
+
+![Média em CN por município, MG 2024 e 2025](reports/figures/q2_mapa_municipios_2024_2025.png)
 
 ## Próximos passos
 
