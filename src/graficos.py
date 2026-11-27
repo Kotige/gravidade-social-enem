@@ -35,9 +35,13 @@ background, simulating protanopia and deuteranopia, all pairs compared):
       They never take a ramp step, always come after the ordered levels,
       sit apart from them in bar charts (extra gap) and use a dashed line
       in densities and time series, so they are not read as one more level.
-    - CORES["sem_dados"]: light neutral (#dedce3) for municipalities
-      without a value in maps; lighter and grayer than the ramp's light
-      end (#9ea9d1 at n=5), so it is not read as the lowest class.
+    - Map ramp (_cores_mapa, used by mapa_municipios): same hue, OKLCH
+      lightness 0.95 -> 0.29, chroma near zero at the light end, so the
+      lightest class sits close to the background and the full lightness
+      range encodes the value (small differences stay visible).
+    - CORES["sem_dados"]: light neutral (#dedce3) with a diagonal hatch
+      for municipalities without a value in maps; the hatch keeps it from
+      being read as a class of the map ramp.
 """
 
 from __future__ import annotations
@@ -114,6 +118,9 @@ FONTE_NUMERO = "IBM Plex Mono"
 
 # Sequential ramp parameters (OKLCH).
 _SEQ_L = (0.74, 0.29)
+# Maps only: the light end almost reaches the background (L 0.976), so the
+# whole lightness range carries the value and small differences show.
+_SEQ_L_MAPA = (0.95, 0.29)
 _SEQ_HUE = 273.0
 _SEQ_MAX_PASSOS = 8
 
@@ -212,14 +219,27 @@ def cores_sequenciais(n: int) -> list[str]:
         )
     if n == 1:
         return [CORES["principal"]]
-    l0, l1 = _SEQ_L
+    return _rampa(n, _SEQ_L)
+
+
+def _rampa(n: int, luminancias: tuple[float, float], croma0: float = 0.06) -> list[str]:
+    """n OKLCH steps of the sequential hue between two lightness values."""
+    l0, l1 = luminancias
     cores = []
     for i in range(n):
         t = i / (n - 1)
         L = l0 - (l0 - l1) * t
-        C = 0.06 + 0.03 * math.sin(math.pi * t)
+        # Chroma grows from the light end (near-white stays near-neutral).
+        C = croma0 + (0.06 - croma0) * t + 0.03 * math.sin(math.pi * t)
         cores.append(_oklch_para_hex(L, C, _SEQ_HUE))
     return cores
+
+
+def _cores_mapa(n: int) -> list[str]:
+    """Map ramp: light end close to CORES["fundo"], dark end as the ramp."""
+    if n < 2:
+        raise ValueError("n must be >= 2")
+    return _rampa(n, _SEQ_L_MAPA, croma0=0.015)
 
 
 def _cores_grupos(
@@ -1011,12 +1031,12 @@ def mapa_municipios(
     coluna_n: str | None = None,
     n_minimo: float | None = None,
     destaque: int | str | None = None,
-    cortes: Sequence[float] | None = None,
+    faixas: Sequence[float] | None = None,
     vmin: float | None = None,
     vmax: float | None = None,
     casas_legenda: int | None = None,
     sufixo_legenda: str = "",
-    rotulo_legenda: str | None = None,
+    rotulo_barra: str | None = None,
     rotulo_sem_dados: str | None = None,
     legenda: bool = True,
     malha: str | Path | None = None,
@@ -1033,19 +1053,24 @@ def mapa_municipios(
     Codes absent from the mesh raise, so a wrong code format (e.g. 6 digits)
     is not silently drawn as missing.
 
-    Colors: the project's sequential ramp, light (low) to dark (high).
-        cortes=None: continuous scale from vmin to vmax (each defaults to
+    Colors: the sequential hue with a map ramp whose light end is close to
+    the background (_cores_mapa), light (low) to dark (high).
+        faixas=None: continuous scale from vmin to vmax (each defaults to
         the data's min/max). Pass the same vmin/vmax to every map of a
         panel so they share one color scale.
-        cortes=[c0, c1, ..., ck]: k classes with edges given by the caller
-        (k <= 8 validated steps); values outside [c0, ck] take the end
-        classes. The classification method is left to the caller.
-    Municipalities without a value are drawn in CORES["sem_dados"].
+        faixas=[c0, c1, ..., ck]: k discrete classes with edges given by
+        the caller (k <= 8 validated steps); values outside [c0, ck] take
+        the end classes. The classification method is left to the caller.
+    When data fall below/above the scale (vmin/vmax or c0/ck), the color
+    bar gets an arrow on that end (extend="min", "max" or "both").
+    Municipalities without a value are drawn in CORES["sem_dados"] with a
+    diagonal hatch, so they are not read as the lightest class.
     coluna_n + n_minimo: values with n < n_minimo are hidden and drawn like
         municipalities without data (they also leave the color range).
     destaque: IBGE code of one municipality, outlined in ochre.
-    rotulo_legenda: text above the color scale; rotulo_sem_dados adds a
-        legend swatch for the neutral color with this text (none by default).
+    rotulo_barra: text above the color bar (e.g. "Nota média em CN
+        (pontos)"); rotulo_sem_dados adds a legend swatch for the
+        no-data look with this text (none by default).
     legenda=False hides the color scale and the swatch.
     Returns (fig, ax).
     """
@@ -1083,17 +1108,25 @@ def mapa_municipios(
 
     # Color scale.
     validos = valores.dropna()
-    if cortes is not None and (vmin is not None or vmax is not None):
-        raise ValueError("use either cortes or vmin/vmax")
-    if cortes is not None:
-        cortes = list(cortes)
-        if len(cortes) < 2 or any(b <= a for a, b in zip(cortes, cortes[1:])):
-            raise ValueError("cortes must be increasing, with at least 2 edges")
-        cores = cores_sequenciais(len(cortes) - 1)
+    if faixas is not None and (vmin is not None or vmax is not None):
+        raise ValueError("use either faixas or vmin/vmax")
+    if faixas is not None:
+        faixas = list(faixas)
+        if len(faixas) < 2 or any(b <= a for a, b in zip(faixas, faixas[1:])):
+            raise ValueError("faixas must be increasing, with at least 2 edges")
+        n_classes = len(faixas) - 1
+        if n_classes > _SEQ_MAX_PASSOS:
+            warnings.warn(
+                f"{n_classes} classes: adjacent colors fall below the minimum "
+                f"lightness gap (validated up to {_SEQ_MAX_PASSOS}).",
+                stacklevel=2,
+            )
+        cores = [CORES["principal"]] if n_classes == 1 else _cores_mapa(n_classes)
         cmap = mpl.colors.ListedColormap(cores)
-        norm = mpl.colors.BoundaryNorm(cortes, cmap.N, clip=True)
+        norm = mpl.colors.BoundaryNorm(faixas, cmap.N, clip=True)
+        lo, hi = faixas[0], faixas[-1]
     else:
-        rampa = cores_sequenciais(_SEQ_MAX_PASSOS)
+        rampa = _cores_mapa(_SEQ_MAX_PASSOS)
         cmap = mpl.colors.LinearSegmentedColormap.from_list("sequencial", rampa)
         if vmin is not None and vmax is not None:
             lo, hi = float(vmin), float(vmax)
@@ -1106,23 +1139,40 @@ def mapa_municipios(
         if hi <= lo:
             hi = lo + 1.0
         norm = mpl.colors.Normalize(lo, hi, clip=True)
+    # Out-of-range values keep the end colors; the bar shows an arrow there.
+    cmap = cmap.with_extremes(under=cmap(0), over=cmap(cmap.N - 1))
+    abaixo = len(validos) > 0 and validos.min() < lo
+    acima = len(validos) > 0 and validos.max() > hi
+    extend = {(True, True): "both", (True, False): "min", (False, True): "max"}.get(
+        (abaixo, acima), "neither"
+    )
 
     fig, ax = _novo_ax(ax, figsize)
     codigos = list(aneis)
-    patches = [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in codigos]
-    cor_face = [
-        CORES["sem_dados"] if np.isnan(v) else cmap(norm(v))
-        for v in (valores.get(c, np.nan) for c in codigos)
-    ]
-    ax.add_collection(
-        mpl.collections.PatchCollection(
-            patches,
-            facecolor=cor_face,
-            edgecolor=CORES["fundo"],
-            linewidth=0.25,
-            zorder=1,
+    com_valor = [c for c in codigos if not np.isnan(valores.get(c, np.nan))]
+    sem_valor = [c for c in codigos if np.isnan(valores.get(c, np.nan))]
+    if com_valor:
+        ax.add_collection(
+            mpl.collections.PatchCollection(
+                [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in com_valor],
+                facecolor=[cmap(norm(valores[c])) for c in com_valor],
+                edgecolor=CORES["fundo"],
+                linewidth=0.25,
+                zorder=1,
+            )
         )
-    )
+    if sem_valor:
+        ax.add_collection(
+            mpl.collections.PatchCollection(
+                [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in sem_valor],
+                facecolor=CORES["sem_dados"],
+                edgecolor=CORES["fundo"],
+                hatchcolor=CORES["eixo"],
+                hatch=_HACHURA_SEM_DADOS,
+                linewidth=0.25,
+                zorder=1,
+            )
+        )
     if codigo_destaque is not None:
         # Light halo under the ochre outline, so it stays visible on dark
         # neighbors and on small municipalities.
@@ -1152,8 +1202,8 @@ def mapa_municipios(
 
     if legenda:
         _legenda_mapa(
-            ax, cmap, norm, cortes, casas_legenda, sufixo_legenda,
-            rotulo_legenda, rotulo_sem_dados,
+            ax, cmap, norm, faixas, extend, casas_legenda, sufixo_legenda,
+            rotulo_barra, rotulo_sem_dados,
         )
     _textos(ax, titulo, subtitulo, None, None, nota)
     return fig, ax
@@ -1162,9 +1212,12 @@ def mapa_municipios(
 # Marks the color-scale inset axes, so painel can hide them like a legend.
 _ROTULO_LEGENDA_MAPA = "_legenda_mapa"
 
+# Hatch of the municipalities without data (and of their legend swatch).
+_HACHURA_SEM_DADOS = "//////"
+
 
 def _legenda_mapa(
-    ax, cmap, norm, cortes, casas, sufixo, rotulo, rotulo_sem_dados
+    ax, cmap, norm, faixas, extend, casas, sufixo, rotulo, rotulo_sem_dados
 ) -> None:
     """Color scale in the empty lower-left corner of the MG map."""
     cax = ax.inset_axes([0.02, 0.1, 0.34, 0.028])
@@ -1173,12 +1226,16 @@ def _legenda_mapa(
         mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
         cax=cax,
         orientation="horizontal",
-        ticks=cortes,
+        ticks=faixas,
+        extend=extend,
+        extendfrac=0.06,
+        # Discrete classes: equal-width blocks would misplace the edges.
+        spacing="proportional",
     )
     barra.outline.set_visible(False)
     cax.grid(False)
     cax.tick_params(axis="x", length=2, color=CORES["eixo"], labelsize=8)
-    if cortes is None:
+    if faixas is None:
         cax.xaxis.set_major_locator(MaxNLocator(nbins=4))
     cax.xaxis.set_major_formatter(_FormatadorPtBr(casas, sufixo))
     _numeros_mono(cax, "x")
@@ -1188,6 +1245,17 @@ def _legenda_mapa(
         sax = ax.inset_axes([0.02, 0.025, 0.028, 0.028])
         sax.set_label(_ROTULO_LEGENDA_MAPA)
         sax.set_facecolor(CORES["sem_dados"])
+        sax.add_patch(
+            mpl.patches.Rectangle(
+                (0, 0), 1, 1,
+                transform=sax.transAxes,
+                facecolor="none",
+                edgecolor="none",
+                hatchcolor=CORES["eixo"],
+                hatch=_HACHURA_SEM_DADOS,
+                linewidth=0,
+            )
+        )
         sax.set_xticks([])
         sax.set_yticks([])
         sax.grid(False)
