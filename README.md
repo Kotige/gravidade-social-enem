@@ -36,15 +36,15 @@ dos dados.
 
 ## Andamento
 
-| Etapa | Descrição                                    | Status                                       |
-| ----- | -------------------------------------------- | -------------------------------------------- |
-| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída                                 |
-| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída                                 |
-| 3     | Análise exploratória                         | 🔄 Em andamento (análise por rede concluída) |
-| 4     | Modelagem estatística                        | ⏳ Planejada                                 |
-| 5     | Raio-X das questões e TRI                    | ⏳ Planejada                                 |
-| 6     | App interativo (React + Tailwind)            | ⏳ Planejada                                 |
-| 7     | Relatório e texto de divulgação              | ⏳ Planejada                                 |
+| Etapa | Descrição                                    | Status                         |
+| ----- | -------------------------------------------- | ------------------------------ |
+| 1     | Aquisição, harmonização e ingestão dos dados | ✅ Concluída                   |
+| 2     | Limpeza e modelagem em SQL (DuckDB)          | ✅ Concluída                   |
+| 3     | Análise exploratória                         | 🔄 Em andamento (Q1 concluída) |
+| 4     | Modelagem estatística                        | ⏳ Planejada                   |
+| 5     | Raio-X das questões e TRI                    | ⏳ Planejada                   |
+| 6     | App interativo (React + Tailwind)            | ⏳ Planejada                   |
+| 7     | Relatório e texto de divulgação              | ⏳ Planejada                   |
 
 ## Destaques técnicos
 
@@ -165,27 +165,42 @@ Notebooks de análise (notebooks/) e, depois, o app (app/)
 
 ## Primeiros resultados
 
+## Primeiros resultados
+
+A primeira pergunta (Q1) mede o tamanho da diferença nas notas de Ciências da
+Natureza entre redes de ensino, faixas de renda per capita e níveis de
+escolaridade dos pais.
+
 ![Média em Ciências da Natureza por rede de ensino — MG, 2020–2025](reports/figures/q1_media_cn_por_rede.png)
 
-A primeira parte da análise compara as redes de ensino
-([notebook](notebooks/01_q1_tamanho_da_diferenca.ipynb)):
+**Por rede de ensino** ([notebook](notebooks/01_q1_tamanho_da_diferenca.ipynb)):
 
-- **A rede estadual/municipal fica bem abaixo das redes federal e privada em
-  todos os anos**, com diferenças de 60 a 93 pontos, cerca de um
+- A rede estadual/municipal fica bem abaixo das redes federal e privada em
+  todos os anos, com diferenças de 60 a 93 pontos, cerca de um
   desvio-padrão das notas.
-- **Federal e privada andam juntas até 2022 e se separam em 2023**, quando a
-  privada sobe e a federal fica estável.
-- **A presença na prova também é desigual:** em 2021, 69% dos inscritos da
-  rede estadual/municipal tiveram nota, contra 92% na federal e 95% na privada.
+- A presença na prova também é desigual: em 2021, 69% dos inscritos da rede
+  estadual/municipal tiveram nota, contra 92% na federal e 95% na privada.
 
-Essas diferenças descrevem as redes, e não o efeito de estudar em cada uma:
-as redes atendem alunos de origens diferentes. Separar esses fatores é o
-objetivo das próximas etapas.
+![Média em Ciências da Natureza por renda per capita — MG, 2020–2023](reports/figures/q1_media_cn_por_renda.png)
+
+**Por renda e escolaridade dos pais** ([notebook](notebooks/01b_q1_renda_e_escolaridade.ipynb)):
+
+- A diferença por renda é grande e gradual: a média sobe cerca de 30 pontos a
+  cada faixa de renda per capita, e as faixas extremas ficam de 80 a 104
+  pontos uma da outra.
+- A diferença pela escolaridade dos pais se concentra no ensino superior:
+  os passos são pequenos até o médio completo e saltam de 36 a 45 pontos na
+  passagem para o superior completo.
+- Medidos na mesma escala (_d_ de Cohen), os três fatores mostram diferenças
+  grandes, sempre na mesma ordem: renda, rede e escolaridade dos pais.
+
+Essas diferenças descrevem os grupos, e não o efeito de cada fator: renda,
+escolaridade dos pais e rede de ensino estão ligadas entre si. Separar esses
+fatores é o objetivo das próximas etapas.
 
 ## Próximos passos
 
-- Concluir a análise exploratória: diferenças por renda per capita e
-  escolaridade dos pais (Q1) e o mapa dos municípios (Q2).
+- Concluir a análise exploratória com o mapa dos municípios (Q2).
 - Modelagem estatística: o que mais pesa na nota (Q3) e quem falta à prova (Q4).
 - Raio-X das questões de Ciências da Natureza e TRI (Q5 e Q6).
 - App interativo em React + Tailwind.
