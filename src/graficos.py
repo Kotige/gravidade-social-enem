@@ -1451,6 +1451,42 @@ def funil(
 
 
 # ---------------------------------------------------------------------------
+# Multi-panel figures
+# ---------------------------------------------------------------------------
+
+
+def textos_figura(fig, titulo: str | None = None, nota: str | None = None) -> None:
+    """Figure-level title and note for multi-panel figures.
+
+    Same style as the single-axes charts (_textos): title in FONTE_TITULO,
+    semibold, axes.titlesize; note at 8 pt in texto_secundario. The title
+    goes on the top-left corner, the note on the bottom-left corner.
+    Nothing is written when a text is None. Call fig.tight_layout with a
+    `rect` that leaves room for them afterwards.
+    """
+    if titulo:
+        fig.suptitle(
+            titulo,
+            x=0.01,
+            ha="left",
+            fontfamily=FONTE_TITULO,
+            fontweight="semibold",
+            fontsize=mpl.rcParams["axes.titlesize"],
+            color=CORES["texto"],
+        )
+    if nota:
+        fig.text(
+            0.01,
+            0.01,
+            nota,
+            ha="left",
+            va="bottom",
+            fontsize=8,
+            color=CORES["texto_secundario"],
+        )
+
+
+# ---------------------------------------------------------------------------
 # Saving
 # ---------------------------------------------------------------------------
 
