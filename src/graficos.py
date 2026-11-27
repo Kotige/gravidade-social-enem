@@ -1012,7 +1012,8 @@ def mapa_municipios(
     n_minimo: float | None = None,
     destaque: int | str | None = None,
     cortes: Sequence[float] | None = None,
-    intervalo: tuple[float, float] | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
     casas_legenda: int | None = None,
     sufixo_legenda: str = "",
     rotulo_legenda: str | None = None,
@@ -1033,7 +1034,9 @@ def mapa_municipios(
     is not silently drawn as missing.
 
     Colors: the project's sequential ramp, light (low) to dark (high).
-        cortes=None: continuous scale over `intervalo` (default data range).
+        cortes=None: continuous scale from vmin to vmax (each defaults to
+        the data's min/max). Pass the same vmin/vmax to every map of a
+        panel so they share one color scale.
         cortes=[c0, c1, ..., ck]: k classes with edges given by the caller
         (k <= 8 validated steps); values outside [c0, ck] take the end
         classes. The classification method is left to the caller.
@@ -1080,6 +1083,8 @@ def mapa_municipios(
 
     # Color scale.
     validos = valores.dropna()
+    if cortes is not None and (vmin is not None or vmax is not None):
+        raise ValueError("use either cortes or vmin/vmax")
     if cortes is not None:
         cortes = list(cortes)
         if len(cortes) < 2 or any(b <= a for a, b in zip(cortes, cortes[1:])):
@@ -1090,12 +1095,14 @@ def mapa_municipios(
     else:
         rampa = cores_sequenciais(_SEQ_MAX_PASSOS)
         cmap = mpl.colors.LinearSegmentedColormap.from_list("sequencial", rampa)
-        if intervalo is not None:
-            lo, hi = intervalo
+        if vmin is not None and vmax is not None:
+            lo, hi = float(vmin), float(vmax)
         elif len(validos):
-            lo, hi = float(validos.min()), float(validos.max())
+            lo = float(validos.min()) if vmin is None else float(vmin)
+            hi = float(validos.max()) if vmax is None else float(vmax)
         else:
-            lo, hi = 0.0, 1.0
+            lo = 0.0 if vmin is None else float(vmin)
+            hi = lo + 1.0 if vmax is None else float(vmax)
         if hi <= lo:
             hi = lo + 1.0
         norm = mpl.colors.Normalize(lo, hi, clip=True)
@@ -1152,11 +1159,16 @@ def mapa_municipios(
     return fig, ax
 
 
+# Marks the color-scale inset axes, so painel can hide them like a legend.
+_ROTULO_LEGENDA_MAPA = "_legenda_mapa"
+
+
 def _legenda_mapa(
     ax, cmap, norm, cortes, casas, sufixo, rotulo, rotulo_sem_dados
 ) -> None:
     """Color scale in the empty lower-left corner of the MG map."""
     cax = ax.inset_axes([0.02, 0.1, 0.34, 0.028])
+    cax.set_label(_ROTULO_LEGENDA_MAPA)
     barra = ax.figure.colorbar(
         mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
         cax=cax,
@@ -1174,6 +1186,7 @@ def _legenda_mapa(
         cax.set_title(rotulo, fontsize=9, color=CORES["texto_secundario"], loc="left", pad=4)
     if rotulo_sem_dados:
         sax = ax.inset_axes([0.02, 0.025, 0.028, 0.028])
+        sax.set_label(_ROTULO_LEGENDA_MAPA)
         sax.set_facecolor(CORES["sem_dados"])
         sax.set_xticks([])
         sax.set_yticks([])
@@ -1455,17 +1468,18 @@ def funil(
 # ---------------------------------------------------------------------------
 
 
-def textos_figura(fig, titulo: str | None = None, nota: str | None = None) -> None:
-    """Figure-level title and note for multi-panel figures.
+_MARGEM_FIGURA = 2  # points between the figure texts and the panels (tight_layout adds its own pad)
 
-    Same style as the single-axes charts (_textos): title in FONTE_TITULO,
-    semibold, axes.titlesize; note at 8 pt in texto_secundario. The title
-    goes on the top-left corner, the note on the bottom-left corner.
-    Nothing is written when a text is None. Call fig.tight_layout with a
-    `rect` that leaves room for them afterwards.
-    """
+
+def _textos_figura(fig, titulo, subtitulo, nota) -> tuple[list, tuple]:
+    """Place the figure texts; return (artists, free rect in figure fraction)."""
+    renderer = fig.canvas.get_renderer()
+    altura = fig.bbox.height
+    pt = fig.dpi / 72 / altura  # one point as a fraction of the figure height
+    artistas = []
+    topo, base = 1.0, 0.0
     if titulo:
-        fig.suptitle(
+        t = fig.suptitle(
             titulo,
             x=0.01,
             ha="left",
@@ -1474,8 +1488,23 @@ def textos_figura(fig, titulo: str | None = None, nota: str | None = None) -> No
             fontsize=mpl.rcParams["axes.titlesize"],
             color=CORES["texto"],
         )
+        artistas.append(t)
+        topo = t.get_window_extent(renderer).y0 / altura
+    if subtitulo:
+        y = topo - 4 * pt if titulo else 0.98
+        t = fig.text(
+            0.01,
+            y,
+            subtitulo,
+            ha="left",
+            va="top",
+            fontsize=10,
+            color=CORES["texto_secundario"],
+        )
+        artistas.append(t)
+        topo = t.get_window_extent(renderer).y0 / altura
     if nota:
-        fig.text(
+        t = fig.text(
             0.01,
             0.01,
             nota,
@@ -1484,6 +1513,137 @@ def textos_figura(fig, titulo: str | None = None, nota: str | None = None) -> No
             fontsize=8,
             color=CORES["texto_secundario"],
         )
+        artistas.append(t)
+        base = t.get_window_extent(renderer).y1 / altura
+    if titulo or subtitulo:
+        topo -= _MARGEM_FIGURA * pt
+    if nota:
+        base += _MARGEM_FIGURA * pt
+    return artistas, (0.0, base, 1.0, topo)
+
+
+def textos_figura(
+    fig,
+    titulo: str | None = None,
+    nota: str | None = None,
+    subtitulo: str | None = None,
+) -> tuple[float, float, float, float]:
+    """Figure-level title, subtitle and note for multi-panel figures.
+
+    Same style as the single-axes charts (_textos): title in FONTE_TITULO,
+    semibold, axes.titlesize; subtitle at 10 pt and note at 8 pt in
+    texto_secundario. Title and subtitle go on the top-left corner, the
+    note on the bottom-left corner. Nothing is written when a text is None.
+    Returns the rect (left, bottom, right, top, figure fraction) left free
+    for the panels, to pass to fig.tight_layout(rect=...). painel does all
+    of this, plus the axis labels and legends.
+    """
+    _artistas, rect = _textos_figura(fig, titulo, subtitulo, nota)
+    return rect
+
+
+def _lista_axes(axes) -> list:
+    """Flatten an Axes, a list or an array of Axes; drop removed/hidden ones."""
+    if isinstance(axes, mpl.axes.Axes):
+        axes = [axes]
+    lista = list(np.asarray(axes, dtype=object).ravel())
+    return [ax for ax in lista if ax is not None and ax.figure is not None and ax.get_visible()]
+
+
+def _bordas(lista: list) -> list[tuple[bool, bool]]:
+    """(on the bottom edge, on the left edge) for each axes of the grid.
+
+    An axes is on the bottom edge when no other axes of the list sits below
+    it in an overlapping column, and on the left edge when none sits to its
+    left in an overlapping row. So a missing (removed) cell in the last row
+    makes the axes above it a bottom one. Axes outside a grid count as both.
+    """
+    vagas = []
+    for ax in lista:
+        ss = ax.get_subplotspec()
+        vagas.append(None if ss is None else (ss.rowspan, ss.colspan))
+
+    def _cruza(a: range, b: range) -> bool:
+        return a.start < b.stop and b.start < a.stop
+
+    bordas = []
+    for i, vaga in enumerate(vagas):
+        if vaga is None:
+            bordas.append((True, True))
+            continue
+        linhas, colunas = vaga
+        outras = [v for k, v in enumerate(vagas) if k != i and v is not None]
+        embaixo = not any(_cruza(c, colunas) and r.start >= linhas.stop for r, c in outras)
+        esquerda = not any(_cruza(r, linhas) and c.stop <= colunas.start for r, c in outras)
+        bordas.append((embaixo, esquerda))
+    return bordas
+
+
+def painel(
+    fig,
+    axes,
+    *,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    nota: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    legenda_so_no_primeiro: bool = True,
+):
+    """Finish a multi-panel figure with the project's visual identity.
+
+    Call after drawing every panel (each one with ax=) and after any
+    manual change to limits; call it last, right before salvar.
+
+    titulo, subtitulo, nota: figure-level texts in the same style as the
+        single-axes charts (see textos_figura), aligned with the left edge
+        of the leftmost panel. Nothing is written when a text is None.
+    rotulo_x / rotulo_y: set on the panels of the bottom row / left column
+        and cleared on the others. None leaves the panels' labels as they are.
+        Tick labels are shown on the edge panels (also with sharex/sharey).
+    legenda_so_no_primeiro: hide the legend (and the color scale of
+        mapa_municipios) of every panel but the first one in `axes` order.
+        Hidden, not removed, so panel titles keep the same height.
+    The panels are laid out with the figure's layout engine (tight_layout
+    when there is none) inside the space left by the texts.
+    Returns fig.
+    """
+    lista = _lista_axes(axes)
+    if not lista:
+        raise ValueError("axes has no visible Axes")
+
+    for ax, (embaixo, esquerda) in zip(lista, _bordas(lista)):
+        # Shared axes hide inner tick labels; an edge panel above a removed
+        # cell must show them again.
+        if embaixo:
+            ax.tick_params(axis="x", labelbottom=True)
+        if esquerda:
+            ax.tick_params(axis="y", labelleft=True)
+        if rotulo_x is not None:
+            ax.set_xlabel(rotulo_x if embaixo else "")
+        if rotulo_y is not None:
+            ax.set_ylabel(rotulo_y if esquerda else "")
+
+    if legenda_so_no_primeiro:
+        for ax in lista[1:]:
+            if ax.get_legend() is not None:
+                ax.get_legend().set_visible(False)
+            for filho in ax.child_axes:
+                if filho.get_label() == _ROTULO_LEGENDA_MAPA:
+                    filho.set_visible(False)
+
+    artistas, rect = _textos_figura(fig, titulo, subtitulo, nota)
+    motor = fig.get_layout_engine()
+    if isinstance(motor, mpl.layout_engine.ConstrainedLayoutEngine):
+        motor.set(rect=rect)
+    else:
+        fig.tight_layout(rect=rect)
+    # Settle the final positions (incl. fixed-aspect maps) before aligning.
+    fig.draw_without_rendering()
+    x0 = min(ax.get_position().x0 for ax in lista)
+    for t in artistas:
+        t.set_x(x0)
+    return fig
 
 
 # ---------------------------------------------------------------------------
