@@ -35,10 +35,19 @@ background, simulating protanopia and deuteranopia, all pairs compared):
       They never take a ramp step, always come after the ordered levels,
       sit apart from them in bar charts (extra gap) and use a dashed line
       in densities and time series, so they are not read as one more level.
+    - Map ramp (_cores_mapa, used by mapa_municipios): same hue, OKLCH
+      lightness 0.95 -> 0.29, chroma near zero at the light end, so the
+      lightest class sits close to the background and the full lightness
+      range encodes the value (small differences stay visible).
+    - CORES["sem_dados"]: light neutral (#dedce3) with a diagonal hatch
+      for municipalities without a value in maps; the hatch keeps it from
+      being read as a class of the map ramp.
 """
 
 from __future__ import annotations
 
+import functools
+import json
 import math
 import re
 import warnings
@@ -50,11 +59,19 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import font_manager
-from matplotlib.ticker import Formatter, FuncFormatter, MaxNLocator
+from matplotlib.ticker import (
+    Formatter,
+    FuncFormatter,
+    LogLocator,
+    MaxNLocator,
+    NullFormatter,
+)
 from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parents[1]
 FIGURES_DIR = ROOT / "reports" / "figures"
+# Simplified IBGE mesh built by scripts/geo_mg.py (see docs/fontes.md).
+MALHA_MG = ROOT / "data" / "geo" / "mg_municipios_2025.geojson"
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -72,6 +89,7 @@ CORES = {
     "ocre": "#c08a3e",
     "neutro": "#a3a1ab",  # non-highlighted series when a highlight is used
     "nao_sei": "#86858d",  # categories outside the ordered levels, 3.4:1
+    "sem_dados": "#dedce3",  # map areas without a value; lighter than the ramp
 }
 
 # Categories that are not a level of an ordered scale (e.g. "don't know"
@@ -100,6 +118,9 @@ FONTE_NUMERO = "IBM Plex Mono"
 
 # Sequential ramp parameters (OKLCH).
 _SEQ_L = (0.74, 0.29)
+# Maps only: the light end almost reaches the background (L 0.976), so the
+# whole lightness range carries the value and small differences show.
+_SEQ_L_MAPA = (0.95, 0.29)
 _SEQ_HUE = 273.0
 _SEQ_MAX_PASSOS = 8
 
@@ -129,8 +150,9 @@ class _FormatadorPtBr(Formatter):
     ticks 0.002, 0.004 or 0.475, 0.500 are never rounded into duplicates.
     """
 
-    def __init__(self, casas: int | None = None):
+    def __init__(self, casas: int | None = None, sufixo: str = ""):
         self.casas = casas
+        self.sufixo = sufixo
 
     def _casas_auto(self) -> int:
         locs = np.asarray(self.locs, dtype=float)
@@ -147,7 +169,7 @@ class _FormatadorPtBr(Formatter):
 
     def __call__(self, x, pos=None):
         casas = self.casas if self.casas is not None else self._casas_auto()
-        return formatar_numero(x, casas)
+        return formatar_numero(x, casas) + self.sufixo
 
 
 def _formatador_eixo(casas: int | None = None) -> Formatter:
@@ -197,14 +219,27 @@ def cores_sequenciais(n: int) -> list[str]:
         )
     if n == 1:
         return [CORES["principal"]]
-    l0, l1 = _SEQ_L
+    return _rampa(n, _SEQ_L)
+
+
+def _rampa(n: int, luminancias: tuple[float, float], croma0: float = 0.06) -> list[str]:
+    """n OKLCH steps of the sequential hue between two lightness values."""
+    l0, l1 = luminancias
     cores = []
     for i in range(n):
         t = i / (n - 1)
         L = l0 - (l0 - l1) * t
-        C = 0.06 + 0.03 * math.sin(math.pi * t)
+        # Chroma grows from the light end (near-white stays near-neutral).
+        C = croma0 + (0.06 - croma0) * t + 0.03 * math.sin(math.pi * t)
         cores.append(_oklch_para_hex(L, C, _SEQ_HUE))
     return cores
+
+
+def _cores_mapa(n: int) -> list[str]:
+    """Map ramp: light end close to CORES["fundo"], dark end as the ramp."""
+    if n < 2:
+        raise ValueError("n must be >= 2")
+    return _rampa(n, _SEQ_L_MAPA, croma0=0.015)
 
 
 def _cores_grupos(
@@ -941,6 +976,742 @@ def _anotar_barra(ax, barra, valor, linhas, horizontal: bool, k: int) -> None:
                 color=cor,
             )
             desloc += tamanho + 2
+
+
+# ---------------------------------------------------------------------------
+# Municipality maps
+# ---------------------------------------------------------------------------
+
+
+@functools.lru_cache(maxsize=4)
+def _ler_malha(caminho: str) -> tuple[dict[int, list[np.ndarray]], dict[int, str]]:
+    """Read a GeoJSON mesh into {code: [rings]} and {code: name}.
+
+    Expects the properties written by scripts/geo_mg.py (codigo_municipio,
+    nome_municipio) and Polygon/MultiPolygon geometries in lon/lat.
+    """
+    with open(caminho, encoding="utf-8") as f:
+        dados = json.load(f)
+    aneis: dict[int, list[np.ndarray]] = {}
+    nomes: dict[int, str] = {}
+    for feat in dados["features"]:
+        props, geom = feat["properties"], feat["geometry"]
+        codigo = int(props["codigo_municipio"])
+        poligonos = [geom["coordinates"]] if geom["type"] == "Polygon" else geom["coordinates"]
+        aneis[codigo] = [np.asarray(anel, dtype=float) for pol in poligonos for anel in pol]
+        nomes[codigo] = props.get("nome_municipio", "")
+    return aneis, nomes
+
+
+def carregar_malha(caminho: str | Path | None = None) -> pd.DataFrame:
+    """Municipalities in the mesh: codigo_municipio, nome_municipio."""
+    caminho = Path(caminho) if caminho else MALHA_MG
+    if not caminho.exists():
+        raise FileNotFoundError(
+            f"{caminho} not found; run scripts/geo_mg.py (see docs/fontes.md)"
+        )
+    _aneis, nomes = _ler_malha(str(caminho.resolve()))
+    return pd.DataFrame(
+        {"codigo_municipio": list(nomes), "nome_municipio": list(nomes.values())}
+    )
+
+
+def _path_municipio(aneis: list[np.ndarray]) -> mpl.path.Path:
+    """One compound path per municipality (all parts and holes)."""
+    return mpl.path.Path.make_compound_path(
+        *(mpl.path.Path(a, closed=True) for a in aneis)
+    )
+
+
+def mapa_municipios(
+    df: pd.DataFrame,
+    coluna_valor: str,
+    coluna_codigo: str = "codigo_municipio",
+    *,
+    coluna_n: str | None = None,
+    n_minimo: float | None = None,
+    destaque: int | str | None = None,
+    faixas: Sequence[float] | None = None,
+    vmin: float | None = None,
+    vmax: float | None = None,
+    casas_legenda: int | None = None,
+    sufixo_legenda: str = "",
+    rotulo_barra: str | None = None,
+    rotulo_sem_dados: str | None = None,
+    legenda: bool = True,
+    malha: str | Path | None = None,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    nota: str | None = None,
+    ax=None,
+    figsize: tuple[float, float] = (7, 6.4),
+):
+    """Choropleth of `coluna_valor` over the MG municipalities.
+
+    Data are joined to the mesh by the 7-digit IBGE code in `coluna_codigo`
+    (int or str). Expects one row per municipality; duplicated codes raise.
+    Codes absent from the mesh raise, so a wrong code format (e.g. 6 digits)
+    is not silently drawn as missing.
+
+    Colors: the sequential hue with a map ramp whose light end is close to
+    the background (_cores_mapa), light (low) to dark (high).
+        faixas=None: continuous scale from vmin to vmax (each defaults to
+        the data's min/max). Pass the same vmin/vmax to every map of a
+        panel so they share one color scale.
+        faixas=[c0, c1, ..., ck]: k discrete classes with edges given by
+        the caller (k <= 8 validated steps); values outside [c0, ck] take
+        the end classes. The classification method is left to the caller.
+    When data fall below/above the scale (vmin/vmax or c0/ck), the color
+    bar gets an arrow on that end (extend="min", "max" or "both").
+    Municipalities without a value are drawn in CORES["sem_dados"] with a
+    diagonal hatch, so they are not read as the lightest class.
+    coluna_n + n_minimo: values with n < n_minimo are hidden and drawn like
+        municipalities without data (they also leave the color range).
+    destaque: IBGE code of one municipality, outlined in ochre.
+    rotulo_barra: text above the color bar (e.g. "Nota média em CN
+        (pontos)"); rotulo_sem_dados adds a legend swatch for the
+        no-data look with this text (none by default).
+    legenda=False hides the color scale and the swatch.
+    Returns (fig, ax).
+    """
+    caminho = Path(malha) if malha else MALHA_MG
+    if not caminho.exists():
+        raise FileNotFoundError(
+            f"{caminho} not found; run scripts/geo_mg.py (see docs/fontes.md)"
+        )
+    aneis, _nomes = _ler_malha(str(caminho.resolve()))
+
+    cols = [coluna_codigo, coluna_valor] + ([coluna_n] if coluna_n else [])
+    dados = df[cols].copy()
+    if n_minimo is not None and coluna_n is None:
+        raise ValueError("n_minimo needs coluna_n")
+    dados = dados.dropna(subset=[coluna_codigo])
+    dados[coluna_codigo] = pd.to_numeric(dados[coluna_codigo], errors="raise").astype("int64")
+    if dados[coluna_codigo].duplicated().any():
+        raise ValueError(f"more than one row per {coluna_codigo}")
+    fora_malha = sorted(set(dados[coluna_codigo]) - set(aneis))
+    if fora_malha:
+        raise ValueError(
+            f"{len(fora_malha)} codes not in the mesh (expected 7-digit IBGE "
+            f"codes of MG), e.g. {fora_malha[:5]}"
+        )
+    if n_minimo is not None:
+        ocultar = dados[coluna_n].isna() | (dados[coluna_n] < n_minimo)
+        dados.loc[ocultar, coluna_valor] = np.nan
+    valores = dados.set_index(coluna_codigo)[coluna_valor].astype(float)
+
+    codigo_destaque = None
+    if destaque is not None:
+        codigo_destaque = int(destaque)
+        if codigo_destaque not in aneis:
+            raise ValueError(f"destaque {destaque} is not in the mesh")
+
+    # Color scale.
+    validos = valores.dropna()
+    if faixas is not None and (vmin is not None or vmax is not None):
+        raise ValueError("use either faixas or vmin/vmax")
+    if faixas is not None:
+        faixas = list(faixas)
+        if len(faixas) < 2 or any(b <= a for a, b in zip(faixas, faixas[1:])):
+            raise ValueError("faixas must be increasing, with at least 2 edges")
+        n_classes = len(faixas) - 1
+        if n_classes > _SEQ_MAX_PASSOS:
+            warnings.warn(
+                f"{n_classes} classes: adjacent colors fall below the minimum "
+                f"lightness gap (validated up to {_SEQ_MAX_PASSOS}).",
+                stacklevel=2,
+            )
+        cores = [CORES["principal"]] if n_classes == 1 else _cores_mapa(n_classes)
+        cmap = mpl.colors.ListedColormap(cores)
+        norm = mpl.colors.BoundaryNorm(faixas, cmap.N, clip=True)
+        lo, hi = faixas[0], faixas[-1]
+    else:
+        rampa = _cores_mapa(_SEQ_MAX_PASSOS)
+        cmap = mpl.colors.LinearSegmentedColormap.from_list("sequencial", rampa)
+        if vmin is not None and vmax is not None:
+            lo, hi = float(vmin), float(vmax)
+        elif len(validos):
+            lo = float(validos.min()) if vmin is None else float(vmin)
+            hi = float(validos.max()) if vmax is None else float(vmax)
+        else:
+            lo = 0.0 if vmin is None else float(vmin)
+            hi = lo + 1.0 if vmax is None else float(vmax)
+        if hi <= lo:
+            hi = lo + 1.0
+        norm = mpl.colors.Normalize(lo, hi, clip=True)
+    # Out-of-range values keep the end colors; the bar shows an arrow there.
+    cmap = cmap.with_extremes(under=cmap(0), over=cmap(cmap.N - 1))
+    abaixo = len(validos) > 0 and validos.min() < lo
+    acima = len(validos) > 0 and validos.max() > hi
+    extend = {(True, True): "both", (True, False): "min", (False, True): "max"}.get(
+        (abaixo, acima), "neither"
+    )
+
+    fig, ax = _novo_ax(ax, figsize)
+    codigos = list(aneis)
+    com_valor = [c for c in codigos if not np.isnan(valores.get(c, np.nan))]
+    sem_valor = [c for c in codigos if np.isnan(valores.get(c, np.nan))]
+    if com_valor:
+        ax.add_collection(
+            mpl.collections.PatchCollection(
+                [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in com_valor],
+                facecolor=[cmap(norm(valores[c])) for c in com_valor],
+                edgecolor=CORES["fundo"],
+                linewidth=0.25,
+                zorder=1,
+            )
+        )
+    if sem_valor:
+        ax.add_collection(
+            mpl.collections.PatchCollection(
+                [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in sem_valor],
+                facecolor=CORES["sem_dados"],
+                edgecolor=CORES["fundo"],
+                hatchcolor=CORES["eixo"],
+                hatch=_HACHURA_SEM_DADOS,
+                linewidth=0.25,
+                zorder=1,
+            )
+        )
+    if codigo_destaque is not None:
+        # Light halo under the ochre outline, so it stays visible on dark
+        # neighbors and on small municipalities.
+        for cor, largura, z in ((CORES["fundo"], 3.4, 3), (DESTAQUE, 1.8, 4)):
+            ax.add_patch(
+                mpl.patches.PathPatch(
+                    _path_municipio(aneis[codigo_destaque]),
+                    facecolor="none",
+                    edgecolor=cor,
+                    linewidth=largura,
+                    joinstyle="round",
+                    zorder=z,
+                )
+            )
+
+    todos = np.concatenate([a for lista in aneis.values() for a in lista])
+    (x0, y0), (x1, y1) = todos.min(axis=0), todos.max(axis=0)
+    mx, my = (x1 - x0) * 0.01, (y1 - y0) * 0.01
+    ax.set_xlim(x0 - mx, x1 + mx)
+    ax.set_ylim(y0 - my, y1 + my)
+    # Equirectangular with the mid-latitude correction: fine at state scale.
+    ax.set_aspect(1 / math.cos(math.radians((y0 + y1) / 2)))
+    # No ticks at all: hidden tick labels would still push the note down.
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_axis_off()
+
+    if legenda:
+        _legenda_mapa(
+            ax, cmap, norm, faixas, extend, casas_legenda, sufixo_legenda,
+            rotulo_barra, rotulo_sem_dados,
+        )
+    _textos(ax, titulo, subtitulo, None, None, nota)
+    return fig, ax
+
+
+# Marks the color-scale inset axes, so painel can hide them like a legend.
+_ROTULO_LEGENDA_MAPA = "_legenda_mapa"
+
+# Hatch of the municipalities without data (and of their legend swatch).
+_HACHURA_SEM_DADOS = "//////"
+
+
+def _legenda_mapa(
+    ax, cmap, norm, faixas, extend, casas, sufixo, rotulo, rotulo_sem_dados
+) -> None:
+    """Color scale in the empty lower-left corner of the MG map."""
+    cax = ax.inset_axes([0.02, 0.1, 0.34, 0.028])
+    cax.set_label(_ROTULO_LEGENDA_MAPA)
+    barra = ax.figure.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+        cax=cax,
+        orientation="horizontal",
+        ticks=faixas,
+        extend=extend,
+        extendfrac=0.06,
+        # Discrete classes: equal-width blocks would misplace the edges.
+        spacing="proportional",
+    )
+    barra.outline.set_visible(False)
+    cax.grid(False)
+    cax.tick_params(axis="x", length=2, color=CORES["eixo"], labelsize=8)
+    if faixas is None:
+        cax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    cax.xaxis.set_major_formatter(_FormatadorPtBr(casas, sufixo))
+    _numeros_mono(cax, "x")
+    if rotulo:
+        cax.set_title(rotulo, fontsize=9, color=CORES["texto_secundario"], loc="left", pad=4)
+    if rotulo_sem_dados:
+        sax = ax.inset_axes([0.02, 0.025, 0.028, 0.028])
+        sax.set_label(_ROTULO_LEGENDA_MAPA)
+        sax.set_facecolor(CORES["sem_dados"])
+        sax.add_patch(
+            mpl.patches.Rectangle(
+                (0, 0), 1, 1,
+                transform=sax.transAxes,
+                facecolor="none",
+                edgecolor="none",
+                hatchcolor=CORES["eixo"],
+                hatch=_HACHURA_SEM_DADOS,
+                linewidth=0,
+            )
+        )
+        sax.set_xticks([])
+        sax.set_yticks([])
+        sax.grid(False)
+        for lado in sax.spines.values():
+            lado.set_visible(False)
+        sax.annotate(
+            rotulo_sem_dados,
+            xy=(1, 0.5),
+            xycoords="axes fraction",
+            xytext=(5, 0),
+            textcoords="offset points",
+            va="center",
+            ha="left",
+            fontsize=8,
+            color=CORES["texto_secundario"],
+            annotation_clip=False,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Funnel plot
+# ---------------------------------------------------------------------------
+
+
+def limites_funil(n, media_ref: float, dp_ref: float, z: float):
+    """Funnel limits media_ref -/+ z * dp_ref / sqrt(n).
+
+    `n` may be a scalar or array-like (NaN propagates); n <= 0 raises.
+    `dp_ref` is the standard deviation of the individual values, so
+    dp_ref / sqrt(n) is the standard error of a mean of n of them.
+    Returns (inferior, superior): floats for scalar n, arrays otherwise.
+    """
+    n_arr = np.asarray(n, dtype=float)
+    if np.any(n_arr[~np.isnan(n_arr)] <= 0):
+        raise ValueError("n must be > 0")
+    meia = z * dp_ref / np.sqrt(n_arr)
+    inferior, superior = media_ref - meia, media_ref + meia
+    if n_arr.ndim == 0:
+        return float(inferior), float(superior)
+    return inferior, superior
+
+
+def _rotulo_nivel(z: float) -> str:
+    """Two-sided normal coverage of +/- z, e.g. 2 -> '95%', 3.09 -> '99,8%'.
+
+    Decimals are chosen so the tail (100% - coverage) keeps one
+    significant digit: 95.45% -> '95%', 99.73% -> '99,7%'.
+    """
+    cobertura = math.erf(abs(z) / math.sqrt(2)) * 100
+    cauda = 100 - cobertura
+    if cauda <= 0:
+        return "100%"
+    casas = max(0, -math.floor(math.log10(cauda)))
+    texto = formatar_numero(cobertura, casas)
+    if "," in texto:
+        texto = texto.rstrip("0").rstrip(",")
+    return texto + "%"
+
+
+_ESTILOS_NIVEIS = [(0, (5, 3)), (0, (1, 2)), (0, (6, 2, 1, 2)), "solid"]
+
+_CORES_FUNIL = {
+    "pontos": CORES["principal"],
+    "destaque": DESTAQUE,
+    "limites": CORES["texto_secundario"],
+    "referencia": CORES["texto_secundario"],
+}
+
+
+def _formatador_log(v, _pos=None) -> str:
+    """Plain pt-BR numbers on a log axis: 10, 100, 1.000 (no 10^n)."""
+    if v <= 0:
+        return ""
+    casas = 0 if v >= 1 else -math.floor(math.log10(v) + 1e-9)
+    return formatar_numero(v, casas)
+
+
+def funil(
+    df: pd.DataFrame,
+    coluna_n: str,
+    coluna_media: str,
+    *,
+    media_ref: float,
+    dp_ref: float,
+    niveis_z: Sequence[float] = (2, 3),
+    escala_x: str = "log",
+    n_minimo: float = 1,
+    destaque=None,
+    coluna_rotulo: str | None = None,
+    rotular: Sequence | None = None,
+    cores: Mapping | None = None,
+    legenda: bool = True,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    nota: str | None = None,
+    ax=None,
+    figsize: tuple[float, float] | None = None,
+):
+    """Funnel plot: each unit's mean (`coluna_media`) against its size (`coluna_n`).
+
+    media_ref, dp_ref: reference mean and individual-level standard deviation,
+        given by the caller. Limits come from limites_funil, one pair of
+        curves per value in `niveis_z`, each with its own line style; the
+        legend label is the two-sided normal coverage computed from z
+        (see _rotulo_nivel). A horizontal line marks media_ref.
+    escala_x: "log" (default; ticks as 10, 100, 1.000) or "linear".
+    n_minimo: units with n below this value are not drawn.
+    destaque: one value or a list of values of `coluna_rotulo`; drawn in
+        ochre, larger, on top of the other points, with a direct label.
+    rotular: values of `coluna_rotulo` labeled without changing their color.
+    cores: optional overrides for the keys "pontos", "destaque", "limites",
+        "referencia".
+    legenda: show the small legend of the limit levels (inside, upper right).
+    Curves do not drive the axis limits: the view follows the points, so
+        panels with sharex/sharey stay consistent. Rows with missing n or
+        mean are dropped. Returns (fig, ax).
+    """
+    if escala_x not in {"log", "linear"}:
+        raise ValueError("escala_x must be 'log' or 'linear'")
+    if not niveis_z:
+        raise ValueError("niveis_z must have at least one value")
+    paleta = dict(_CORES_FUNIL)
+    if cores is not None:
+        desconhecidas = set(cores) - set(paleta)
+        if desconhecidas:
+            raise ValueError(f"unknown keys in cores: {sorted(desconhecidas)}")
+        paleta.update(cores)
+
+    def _como_lista(valor) -> list:
+        if valor is None:
+            return []
+        if isinstance(valor, (str, bytes)) or not isinstance(valor, (Sequence, np.ndarray, pd.Index, pd.Series, set)):
+            return [valor]
+        return list(valor)
+
+    destaques = _como_lista(destaque)
+    a_rotular = _como_lista(rotular)
+    if (destaques or a_rotular) and coluna_rotulo is None:
+        raise ValueError("destaque and rotular need coluna_rotulo")
+
+    cols = [coluna_n, coluna_media] + ([coluna_rotulo] if coluna_rotulo else [])
+    dados = df[cols].dropna(subset=[coluna_n, coluna_media])
+    if coluna_rotulo:
+        presentes = set(dados[coluna_rotulo])
+        ausentes = [v for v in destaques + a_rotular if v not in presentes]
+        if ausentes:
+            raise ValueError(f"values not found in {coluna_rotulo}: {ausentes}")
+    visiveis = dados[dados[coluna_n] >= n_minimo]
+    if coluna_rotulo:
+        ocultos = [v for v in destaques + a_rotular if v not in set(visiveis[coluna_rotulo])]
+        if ocultos:
+            warnings.warn(
+                f"values hidden by n_minimo={n_minimo}: {ocultos}", stacklevel=2
+            )
+
+    fig, ax = _novo_ax(ax, figsize)
+    if escala_x == "log":
+        ax.set_xscale("log")
+
+    e_destaque = (
+        visiveis[coluna_rotulo].isin(destaques)
+        if coluna_rotulo and destaques
+        else pd.Series(False, index=visiveis.index)
+    )
+    base = visiveis[~e_destaque]
+    ax.scatter(
+        base[coluna_n],
+        base[coluna_media],
+        s=10,
+        color=paleta["pontos"],
+        alpha=0.45,
+        linewidths=0,
+        zorder=2,
+    )
+    realce = visiveis[e_destaque]
+    if len(realce):
+        ax.scatter(
+            realce[coluna_n],
+            realce[coluna_media],
+            s=40,
+            color=paleta["destaque"],
+            edgecolors=CORES["fundo"],
+            linewidths=1,
+            zorder=4,
+        )
+
+    ax.axhline(media_ref, color=paleta["referencia"], linewidth=1, zorder=1)
+
+    # Curves span well beyond the data so they cover the view of shared
+    # axes too. They are added with add_artist, which leaves dataLim alone,
+    # so they never drive autoscaling (scalex/scaley=False is not enough:
+    # a later shared-axes rescale would still read them from dataLim).
+    if len(visiveis):
+        n_lo = float(visiveis[coluna_n].min())
+        n_hi = float(visiveis[coluna_n].max())
+    else:
+        n_lo, n_hi = max(float(n_minimo), 1.0), max(float(n_minimo), 1.0) * 10
+    n_lo = max(n_lo, 1e-9)
+    if escala_x == "log":
+        grade = np.geomspace(n_lo / 10, n_hi * 10, 400)
+    else:
+        grade = np.linspace(n_lo / 10, n_hi * 1.5, 400)
+    handles = []
+    for i, z in enumerate(niveis_z):
+        inferior, superior = limites_funil(grade, media_ref, dp_ref, z)
+        estilo = _ESTILOS_NIVEIS[i % len(_ESTILOS_NIVEIS)]
+        for j, curva in enumerate((inferior, superior)):
+            linha = mpl.lines.Line2D(
+                grade,
+                curva,
+                color=paleta["limites"],
+                linewidth=1,
+                linestyle=estilo,
+                label=_rotulo_nivel(z),
+                zorder=1,
+            )
+            ax.add_artist(linha)
+            if j == 0:
+                handles.append(linha)
+
+    if escala_x == "log":
+        ax.xaxis.set_major_locator(LogLocator(base=10))
+        ax.xaxis.set_major_formatter(FuncFormatter(_formatador_log))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        # Less than one decade in view: label 1-2-5 steps too.
+        if len(visiveis) and n_hi / n_lo < 10:
+            ax.xaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+    else:
+        ax.xaxis.set_major_formatter(_formatador_eixo())
+    ax.yaxis.set_major_formatter(_formatador_eixo())
+    _numeros_mono(ax)
+
+    # Direct labels: highlighted values first, then the plain ones. Points
+    # in the right fifth of the view get the label on their left.
+    if coluna_rotulo:
+        ax.get_xlim()  # settle the view before reading positions
+        para_eixos = ax.transAxes.inverted()
+        rotulos = [(v, True) for v in destaques] + [
+            (v, False) for v in a_rotular if v not in destaques
+        ]
+        for valor, realcado in rotulos:
+            linhas = visiveis[visiveis[coluna_rotulo] == valor]
+            for _idx, linha in linhas.iterrows():
+                xy = (linha[coluna_n], linha[coluna_media])
+                a_direita = para_eixos.transform(ax.transData.transform(xy))[0] > 0.8
+                ax.annotate(
+                    str(valor),
+                    xy=xy,
+                    xytext=(-5 if a_direita else 5, 4),
+                    textcoords="offset points",
+                    ha="right" if a_direita else "left",
+                    va="bottom",
+                    fontsize=8.5,
+                    color=CORES["texto"] if realcado else CORES["texto_secundario"],
+                    fontweight="semibold" if realcado else "normal",
+                    zorder=5,
+                )
+
+    # Texts first: the legend sits inside the axes, so no row is reserved
+    # for it above them.
+    _textos(ax, titulo, subtitulo, rotulo_x, rotulo_y, nota)
+    if legenda:
+        ax.legend(
+            handles=handles,
+            loc="upper right",
+            fontsize=8,
+            handlelength=2.4,
+            labelcolor=CORES["texto_secundario"],
+            borderaxespad=0.4,
+        )
+    return fig, ax
+
+
+# ---------------------------------------------------------------------------
+# Multi-panel figures
+# ---------------------------------------------------------------------------
+
+
+_MARGEM_FIGURA = 2  # points between the figure texts and the panels (tight_layout adds its own pad)
+
+
+def _textos_figura(fig, titulo, subtitulo, nota) -> tuple[list, tuple]:
+    """Place the figure texts; return (artists, free rect in figure fraction)."""
+    renderer = fig.canvas.get_renderer()
+    altura = fig.bbox.height
+    pt = fig.dpi / 72 / altura  # one point as a fraction of the figure height
+    artistas = []
+    topo, base = 1.0, 0.0
+    if titulo:
+        t = fig.suptitle(
+            titulo,
+            x=0.01,
+            ha="left",
+            fontfamily=FONTE_TITULO,
+            fontweight="semibold",
+            fontsize=mpl.rcParams["axes.titlesize"],
+            color=CORES["texto"],
+        )
+        artistas.append(t)
+        topo = t.get_window_extent(renderer).y0 / altura
+    if subtitulo:
+        y = topo - 4 * pt if titulo else 0.98
+        t = fig.text(
+            0.01,
+            y,
+            subtitulo,
+            ha="left",
+            va="top",
+            fontsize=10,
+            color=CORES["texto_secundario"],
+        )
+        artistas.append(t)
+        topo = t.get_window_extent(renderer).y0 / altura
+    if nota:
+        t = fig.text(
+            0.01,
+            0.01,
+            nota,
+            ha="left",
+            va="bottom",
+            fontsize=8,
+            color=CORES["texto_secundario"],
+        )
+        artistas.append(t)
+        base = t.get_window_extent(renderer).y1 / altura
+    if titulo or subtitulo:
+        topo -= _MARGEM_FIGURA * pt
+    if nota:
+        base += _MARGEM_FIGURA * pt
+    return artistas, (0.0, base, 1.0, topo)
+
+
+def textos_figura(
+    fig,
+    titulo: str | None = None,
+    nota: str | None = None,
+    subtitulo: str | None = None,
+) -> tuple[float, float, float, float]:
+    """Figure-level title, subtitle and note for multi-panel figures.
+
+    Same style as the single-axes charts (_textos): title in FONTE_TITULO,
+    semibold, axes.titlesize; subtitle at 10 pt and note at 8 pt in
+    texto_secundario. Title and subtitle go on the top-left corner, the
+    note on the bottom-left corner. Nothing is written when a text is None.
+    Returns the rect (left, bottom, right, top, figure fraction) left free
+    for the panels, to pass to fig.tight_layout(rect=...). painel does all
+    of this, plus the axis labels and legends.
+    """
+    _artistas, rect = _textos_figura(fig, titulo, subtitulo, nota)
+    return rect
+
+
+def _lista_axes(axes) -> list:
+    """Flatten an Axes, a list or an array of Axes; drop removed/hidden ones."""
+    if isinstance(axes, mpl.axes.Axes):
+        axes = [axes]
+    lista = list(np.asarray(axes, dtype=object).ravel())
+    return [ax for ax in lista if ax is not None and ax.figure is not None and ax.get_visible()]
+
+
+def _bordas(lista: list) -> list[tuple[bool, bool]]:
+    """(on the bottom edge, on the left edge) for each axes of the grid.
+
+    An axes is on the bottom edge when no other axes of the list sits below
+    it in an overlapping column, and on the left edge when none sits to its
+    left in an overlapping row. So a missing (removed) cell in the last row
+    makes the axes above it a bottom one. Axes outside a grid count as both.
+    """
+    vagas = []
+    for ax in lista:
+        ss = ax.get_subplotspec()
+        vagas.append(None if ss is None else (ss.rowspan, ss.colspan))
+
+    def _cruza(a: range, b: range) -> bool:
+        return a.start < b.stop and b.start < a.stop
+
+    bordas = []
+    for i, vaga in enumerate(vagas):
+        if vaga is None:
+            bordas.append((True, True))
+            continue
+        linhas, colunas = vaga
+        outras = [v for k, v in enumerate(vagas) if k != i and v is not None]
+        embaixo = not any(_cruza(c, colunas) and r.start >= linhas.stop for r, c in outras)
+        esquerda = not any(_cruza(r, linhas) and c.stop <= colunas.start for r, c in outras)
+        bordas.append((embaixo, esquerda))
+    return bordas
+
+
+def painel(
+    fig,
+    axes,
+    *,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    nota: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    legenda_so_no_primeiro: bool = True,
+):
+    """Finish a multi-panel figure with the project's visual identity.
+
+    Call after drawing every panel (each one with ax=) and after any
+    manual change to limits; call it last, right before salvar.
+
+    titulo, subtitulo, nota: figure-level texts in the same style as the
+        single-axes charts (see textos_figura), aligned with the left edge
+        of the leftmost panel. Nothing is written when a text is None.
+    rotulo_x / rotulo_y: set on the panels of the bottom row / left column
+        and cleared on the others. None leaves the panels' labels as they are.
+        Tick labels are shown on the edge panels (also with sharex/sharey).
+    legenda_so_no_primeiro: hide the legend (and the color scale of
+        mapa_municipios) of every panel but the first one in `axes` order.
+        Hidden, not removed, so panel titles keep the same height.
+    The panels are laid out with the figure's layout engine (tight_layout
+    when there is none) inside the space left by the texts.
+    Returns fig.
+    """
+    lista = _lista_axes(axes)
+    if not lista:
+        raise ValueError("axes has no visible Axes")
+
+    for ax, (embaixo, esquerda) in zip(lista, _bordas(lista)):
+        # Shared axes hide inner tick labels; an edge panel above a removed
+        # cell must show them again.
+        if embaixo:
+            ax.tick_params(axis="x", labelbottom=True)
+        if esquerda:
+            ax.tick_params(axis="y", labelleft=True)
+        if rotulo_x is not None:
+            ax.set_xlabel(rotulo_x if embaixo else "")
+        if rotulo_y is not None:
+            ax.set_ylabel(rotulo_y if esquerda else "")
+
+    if legenda_so_no_primeiro:
+        for ax in lista[1:]:
+            if ax.get_legend() is not None:
+                ax.get_legend().set_visible(False)
+            for filho in ax.child_axes:
+                if filho.get_label() == _ROTULO_LEGENDA_MAPA:
+                    filho.set_visible(False)
+
+    artistas, rect = _textos_figura(fig, titulo, subtitulo, nota)
+    motor = fig.get_layout_engine()
+    if isinstance(motor, mpl.layout_engine.ConstrainedLayoutEngine):
+        motor.set(rect=rect)
+    else:
+        fig.tight_layout(rect=rect)
+    # Settle the final positions (incl. fixed-aspect maps) before aligning.
+    fig.draw_without_rendering()
+    x0 = min(ax.get_position().x0 for ax in lista)
+    for t in artistas:
+        t.set_x(x0)
+    return fig
 
 
 # ---------------------------------------------------------------------------
