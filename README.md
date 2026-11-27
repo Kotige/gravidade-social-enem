@@ -208,7 +208,6 @@ fatores é o objetivo das próximas etapas.
 
 ## Próximos passos
 
-- Concluir a análise exploratória com o mapa dos municípios (Q2).
 - Modelagem estatística: o que mais pesa na nota (Q3) e quem falta à prova (Q4).
 - Raio-X das questões de Ciências da Natureza e TRI (Q5 e Q6).
 - App interativo em React + Tailwind.
