@@ -35,10 +35,15 @@ background, simulating protanopia and deuteranopia, all pairs compared):
       They never take a ramp step, always come after the ordered levels,
       sit apart from them in bar charts (extra gap) and use a dashed line
       in densities and time series, so they are not read as one more level.
+    - CORES["sem_dados"]: light neutral (#dedce3) for municipalities
+      without a value in maps; lighter and grayer than the ramp's light
+      end (#9ea9d1 at n=5), so it is not read as the lowest class.
 """
 
 from __future__ import annotations
 
+import functools
+import json
 import math
 import re
 import warnings
@@ -55,6 +60,8 @@ from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parents[1]
 FIGURES_DIR = ROOT / "reports" / "figures"
+# Simplified IBGE mesh built by scripts/geo_mg.py (see docs/fontes.md).
+MALHA_MG = ROOT / "data" / "geo" / "mg_municipios_2025.geojson"
 
 # ---------------------------------------------------------------------------
 # Tokens
@@ -72,6 +79,7 @@ CORES = {
     "ocre": "#c08a3e",
     "neutro": "#a3a1ab",  # non-highlighted series when a highlight is used
     "nao_sei": "#86858d",  # categories outside the ordered levels, 3.4:1
+    "sem_dados": "#dedce3",  # map areas without a value; lighter than the ramp
 }
 
 # Categories that are not a level of an ordered scale (e.g. "don't know"
@@ -129,8 +137,9 @@ class _FormatadorPtBr(Formatter):
     ticks 0.002, 0.004 or 0.475, 0.500 are never rounded into duplicates.
     """
 
-    def __init__(self, casas: int | None = None):
+    def __init__(self, casas: int | None = None, sufixo: str = ""):
         self.casas = casas
+        self.sufixo = sufixo
 
     def _casas_auto(self) -> int:
         locs = np.asarray(self.locs, dtype=float)
@@ -147,7 +156,7 @@ class _FormatadorPtBr(Formatter):
 
     def __call__(self, x, pos=None):
         casas = self.casas if self.casas is not None else self._casas_auto()
-        return formatar_numero(x, casas)
+        return formatar_numero(x, casas) + self.sufixo
 
 
 def _formatador_eixo(casas: int | None = None) -> Formatter:
@@ -941,6 +950,242 @@ def _anotar_barra(ax, barra, valor, linhas, horizontal: bool, k: int) -> None:
                 color=cor,
             )
             desloc += tamanho + 2
+
+
+# ---------------------------------------------------------------------------
+# Municipality maps
+# ---------------------------------------------------------------------------
+
+
+@functools.lru_cache(maxsize=4)
+def _ler_malha(caminho: str) -> tuple[dict[int, list[np.ndarray]], dict[int, str]]:
+    """Read a GeoJSON mesh into {code: [rings]} and {code: name}.
+
+    Expects the properties written by scripts/geo_mg.py (codigo_municipio,
+    nome_municipio) and Polygon/MultiPolygon geometries in lon/lat.
+    """
+    with open(caminho, encoding="utf-8") as f:
+        dados = json.load(f)
+    aneis: dict[int, list[np.ndarray]] = {}
+    nomes: dict[int, str] = {}
+    for feat in dados["features"]:
+        props, geom = feat["properties"], feat["geometry"]
+        codigo = int(props["codigo_municipio"])
+        poligonos = [geom["coordinates"]] if geom["type"] == "Polygon" else geom["coordinates"]
+        aneis[codigo] = [np.asarray(anel, dtype=float) for pol in poligonos for anel in pol]
+        nomes[codigo] = props.get("nome_municipio", "")
+    return aneis, nomes
+
+
+def carregar_malha(caminho: str | Path | None = None) -> pd.DataFrame:
+    """Municipalities in the mesh: codigo_municipio, nome_municipio."""
+    caminho = Path(caminho) if caminho else MALHA_MG
+    if not caminho.exists():
+        raise FileNotFoundError(
+            f"{caminho} not found; run scripts/geo_mg.py (see docs/fontes.md)"
+        )
+    _aneis, nomes = _ler_malha(str(caminho.resolve()))
+    return pd.DataFrame(
+        {"codigo_municipio": list(nomes), "nome_municipio": list(nomes.values())}
+    )
+
+
+def _path_municipio(aneis: list[np.ndarray]) -> mpl.path.Path:
+    """One compound path per municipality (all parts and holes)."""
+    return mpl.path.Path.make_compound_path(
+        *(mpl.path.Path(a, closed=True) for a in aneis)
+    )
+
+
+def mapa_municipios(
+    df: pd.DataFrame,
+    coluna_valor: str,
+    coluna_codigo: str = "codigo_municipio",
+    *,
+    coluna_n: str | None = None,
+    n_minimo: float | None = None,
+    destaque: int | str | None = None,
+    cortes: Sequence[float] | None = None,
+    intervalo: tuple[float, float] | None = None,
+    casas_legenda: int | None = None,
+    sufixo_legenda: str = "",
+    rotulo_legenda: str | None = None,
+    rotulo_sem_dados: str | None = None,
+    legenda: bool = True,
+    malha: str | Path | None = None,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    nota: str | None = None,
+    ax=None,
+    figsize: tuple[float, float] = (7, 6.4),
+):
+    """Choropleth of `coluna_valor` over the MG municipalities.
+
+    Data are joined to the mesh by the 7-digit IBGE code in `coluna_codigo`
+    (int or str). Expects one row per municipality; duplicated codes raise.
+    Codes absent from the mesh raise, so a wrong code format (e.g. 6 digits)
+    is not silently drawn as missing.
+
+    Colors: the project's sequential ramp, light (low) to dark (high).
+        cortes=None: continuous scale over `intervalo` (default data range).
+        cortes=[c0, c1, ..., ck]: k classes with edges given by the caller
+        (k <= 8 validated steps); values outside [c0, ck] take the end
+        classes. The classification method is left to the caller.
+    Municipalities without a value are drawn in CORES["sem_dados"].
+    coluna_n + n_minimo: values with n < n_minimo are hidden and drawn like
+        municipalities without data (they also leave the color range).
+    destaque: IBGE code of one municipality, outlined in ochre.
+    rotulo_legenda: text above the color scale; rotulo_sem_dados adds a
+        legend swatch for the neutral color with this text (none by default).
+    legenda=False hides the color scale and the swatch.
+    Returns (fig, ax).
+    """
+    caminho = Path(malha) if malha else MALHA_MG
+    if not caminho.exists():
+        raise FileNotFoundError(
+            f"{caminho} not found; run scripts/geo_mg.py (see docs/fontes.md)"
+        )
+    aneis, _nomes = _ler_malha(str(caminho.resolve()))
+
+    cols = [coluna_codigo, coluna_valor] + ([coluna_n] if coluna_n else [])
+    dados = df[cols].copy()
+    if n_minimo is not None and coluna_n is None:
+        raise ValueError("n_minimo needs coluna_n")
+    dados = dados.dropna(subset=[coluna_codigo])
+    dados[coluna_codigo] = pd.to_numeric(dados[coluna_codigo], errors="raise").astype("int64")
+    if dados[coluna_codigo].duplicated().any():
+        raise ValueError(f"more than one row per {coluna_codigo}")
+    fora_malha = sorted(set(dados[coluna_codigo]) - set(aneis))
+    if fora_malha:
+        raise ValueError(
+            f"{len(fora_malha)} codes not in the mesh (expected 7-digit IBGE "
+            f"codes of MG), e.g. {fora_malha[:5]}"
+        )
+    if n_minimo is not None:
+        ocultar = dados[coluna_n].isna() | (dados[coluna_n] < n_minimo)
+        dados.loc[ocultar, coluna_valor] = np.nan
+    valores = dados.set_index(coluna_codigo)[coluna_valor].astype(float)
+
+    codigo_destaque = None
+    if destaque is not None:
+        codigo_destaque = int(destaque)
+        if codigo_destaque not in aneis:
+            raise ValueError(f"destaque {destaque} is not in the mesh")
+
+    # Color scale.
+    validos = valores.dropna()
+    if cortes is not None:
+        cortes = list(cortes)
+        if len(cortes) < 2 or any(b <= a for a, b in zip(cortes, cortes[1:])):
+            raise ValueError("cortes must be increasing, with at least 2 edges")
+        cores = cores_sequenciais(len(cortes) - 1)
+        cmap = mpl.colors.ListedColormap(cores)
+        norm = mpl.colors.BoundaryNorm(cortes, cmap.N, clip=True)
+    else:
+        rampa = cores_sequenciais(_SEQ_MAX_PASSOS)
+        cmap = mpl.colors.LinearSegmentedColormap.from_list("sequencial", rampa)
+        if intervalo is not None:
+            lo, hi = intervalo
+        elif len(validos):
+            lo, hi = float(validos.min()), float(validos.max())
+        else:
+            lo, hi = 0.0, 1.0
+        if hi <= lo:
+            hi = lo + 1.0
+        norm = mpl.colors.Normalize(lo, hi, clip=True)
+
+    fig, ax = _novo_ax(ax, figsize)
+    codigos = list(aneis)
+    patches = [mpl.patches.PathPatch(_path_municipio(aneis[c])) for c in codigos]
+    cor_face = [
+        CORES["sem_dados"] if np.isnan(v) else cmap(norm(v))
+        for v in (valores.get(c, np.nan) for c in codigos)
+    ]
+    ax.add_collection(
+        mpl.collections.PatchCollection(
+            patches,
+            facecolor=cor_face,
+            edgecolor=CORES["fundo"],
+            linewidth=0.25,
+            zorder=1,
+        )
+    )
+    if codigo_destaque is not None:
+        # Light halo under the ochre outline, so it stays visible on dark
+        # neighbors and on small municipalities.
+        for cor, largura, z in ((CORES["fundo"], 3.4, 3), (DESTAQUE, 1.8, 4)):
+            ax.add_patch(
+                mpl.patches.PathPatch(
+                    _path_municipio(aneis[codigo_destaque]),
+                    facecolor="none",
+                    edgecolor=cor,
+                    linewidth=largura,
+                    joinstyle="round",
+                    zorder=z,
+                )
+            )
+
+    todos = np.concatenate([a for lista in aneis.values() for a in lista])
+    (x0, y0), (x1, y1) = todos.min(axis=0), todos.max(axis=0)
+    mx, my = (x1 - x0) * 0.01, (y1 - y0) * 0.01
+    ax.set_xlim(x0 - mx, x1 + mx)
+    ax.set_ylim(y0 - my, y1 + my)
+    # Equirectangular with the mid-latitude correction: fine at state scale.
+    ax.set_aspect(1 / math.cos(math.radians((y0 + y1) / 2)))
+    # No ticks at all: hidden tick labels would still push the note down.
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_axis_off()
+
+    if legenda:
+        _legenda_mapa(
+            ax, cmap, norm, cortes, casas_legenda, sufixo_legenda,
+            rotulo_legenda, rotulo_sem_dados,
+        )
+    _textos(ax, titulo, subtitulo, None, None, nota)
+    return fig, ax
+
+
+def _legenda_mapa(
+    ax, cmap, norm, cortes, casas, sufixo, rotulo, rotulo_sem_dados
+) -> None:
+    """Color scale in the empty lower-left corner of the MG map."""
+    cax = ax.inset_axes([0.02, 0.1, 0.34, 0.028])
+    barra = ax.figure.colorbar(
+        mpl.cm.ScalarMappable(norm=norm, cmap=cmap),
+        cax=cax,
+        orientation="horizontal",
+        ticks=cortes,
+    )
+    barra.outline.set_visible(False)
+    cax.grid(False)
+    cax.tick_params(axis="x", length=2, color=CORES["eixo"], labelsize=8)
+    if cortes is None:
+        cax.xaxis.set_major_locator(MaxNLocator(nbins=4))
+    cax.xaxis.set_major_formatter(_FormatadorPtBr(casas, sufixo))
+    _numeros_mono(cax, "x")
+    if rotulo:
+        cax.set_title(rotulo, fontsize=9, color=CORES["texto_secundario"], loc="left", pad=4)
+    if rotulo_sem_dados:
+        sax = ax.inset_axes([0.02, 0.025, 0.028, 0.028])
+        sax.set_facecolor(CORES["sem_dados"])
+        sax.set_xticks([])
+        sax.set_yticks([])
+        sax.grid(False)
+        for lado in sax.spines.values():
+            lado.set_visible(False)
+        sax.annotate(
+            rotulo_sem_dados,
+            xy=(1, 0.5),
+            xycoords="axes fraction",
+            xytext=(5, 0),
+            textcoords="offset points",
+            va="center",
+            ha="left",
+            fontsize=8,
+            color=CORES["texto_secundario"],
+            annotation_clip=False,
+        )
 
 
 # ---------------------------------------------------------------------------
