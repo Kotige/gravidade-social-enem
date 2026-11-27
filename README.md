@@ -173,7 +173,7 @@ escolaridade dos pais.
 
 ![Média em Ciências da Natureza por rede de ensino — MG, 2020–2025](reports/figures/q1_media_cn_por_rede.png)
 
-**Por rede de ensino** ([notebook](notebooks/01_q1_tamanho_da_diferenca.ipynb)):
+**Por rede de ensino** ([notebook](notebooks/01a_q1_tamanho_da_diferenca.ipynb)):
 
 - A rede estadual/municipal fica bem abaixo das redes federal e privada em
   todos os anos, com diferenças de 60 a 93 pontos, cerca de um
