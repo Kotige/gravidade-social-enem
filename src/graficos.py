@@ -55,7 +55,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import font_manager
-from matplotlib.ticker import Formatter, FuncFormatter, MaxNLocator
+from matplotlib.ticker import (
+    Formatter,
+    FuncFormatter,
+    LogLocator,
+    MaxNLocator,
+    NullFormatter,
+)
 from matplotlib.transforms import Bbox
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -1186,6 +1192,262 @@ def _legenda_mapa(
             color=CORES["texto_secundario"],
             annotation_clip=False,
         )
+
+
+# ---------------------------------------------------------------------------
+# Funnel plot
+# ---------------------------------------------------------------------------
+
+
+def limites_funil(n, media_ref: float, dp_ref: float, z: float):
+    """Funnel limits media_ref -/+ z * dp_ref / sqrt(n).
+
+    `n` may be a scalar or array-like (NaN propagates); n <= 0 raises.
+    `dp_ref` is the standard deviation of the individual values, so
+    dp_ref / sqrt(n) is the standard error of a mean of n of them.
+    Returns (inferior, superior): floats for scalar n, arrays otherwise.
+    """
+    n_arr = np.asarray(n, dtype=float)
+    if np.any(n_arr[~np.isnan(n_arr)] <= 0):
+        raise ValueError("n must be > 0")
+    meia = z * dp_ref / np.sqrt(n_arr)
+    inferior, superior = media_ref - meia, media_ref + meia
+    if n_arr.ndim == 0:
+        return float(inferior), float(superior)
+    return inferior, superior
+
+
+def _rotulo_nivel(z: float) -> str:
+    """Two-sided normal coverage of +/- z, e.g. 2 -> '95%', 3.09 -> '99,8%'.
+
+    Decimals are chosen so the tail (100% - coverage) keeps one
+    significant digit: 95.45% -> '95%', 99.73% -> '99,7%'.
+    """
+    cobertura = math.erf(abs(z) / math.sqrt(2)) * 100
+    cauda = 100 - cobertura
+    if cauda <= 0:
+        return "100%"
+    casas = max(0, -math.floor(math.log10(cauda)))
+    texto = formatar_numero(cobertura, casas)
+    if "," in texto:
+        texto = texto.rstrip("0").rstrip(",")
+    return texto + "%"
+
+
+_ESTILOS_NIVEIS = [(0, (5, 3)), (0, (1, 2)), (0, (6, 2, 1, 2)), "solid"]
+
+_CORES_FUNIL = {
+    "pontos": CORES["principal"],
+    "destaque": DESTAQUE,
+    "limites": CORES["texto_secundario"],
+    "referencia": CORES["texto_secundario"],
+}
+
+
+def _formatador_log(v, _pos=None) -> str:
+    """Plain pt-BR numbers on a log axis: 10, 100, 1.000 (no 10^n)."""
+    if v <= 0:
+        return ""
+    casas = 0 if v >= 1 else -math.floor(math.log10(v) + 1e-9)
+    return formatar_numero(v, casas)
+
+
+def funil(
+    df: pd.DataFrame,
+    coluna_n: str,
+    coluna_media: str,
+    *,
+    media_ref: float,
+    dp_ref: float,
+    niveis_z: Sequence[float] = (2, 3),
+    escala_x: str = "log",
+    n_minimo: float = 1,
+    destaque=None,
+    coluna_rotulo: str | None = None,
+    rotular: Sequence | None = None,
+    cores: Mapping | None = None,
+    legenda: bool = True,
+    titulo: str | None = None,
+    subtitulo: str | None = None,
+    rotulo_x: str | None = None,
+    rotulo_y: str | None = None,
+    nota: str | None = None,
+    ax=None,
+    figsize: tuple[float, float] | None = None,
+):
+    """Funnel plot: each unit's mean (`coluna_media`) against its size (`coluna_n`).
+
+    media_ref, dp_ref: reference mean and individual-level standard deviation,
+        given by the caller. Limits come from limites_funil, one pair of
+        curves per value in `niveis_z`, each with its own line style; the
+        legend label is the two-sided normal coverage computed from z
+        (see _rotulo_nivel). A horizontal line marks media_ref.
+    escala_x: "log" (default; ticks as 10, 100, 1.000) or "linear".
+    n_minimo: units with n below this value are not drawn.
+    destaque: one value or a list of values of `coluna_rotulo`; drawn in
+        ochre, larger, on top of the other points, with a direct label.
+    rotular: values of `coluna_rotulo` labeled without changing their color.
+    cores: optional overrides for the keys "pontos", "destaque", "limites",
+        "referencia".
+    legenda: show the small legend of the limit levels (inside, upper right).
+    Curves do not drive the axis limits: the view follows the points, so
+        panels with sharex/sharey stay consistent. Rows with missing n or
+        mean are dropped. Returns (fig, ax).
+    """
+    if escala_x not in {"log", "linear"}:
+        raise ValueError("escala_x must be 'log' or 'linear'")
+    if not niveis_z:
+        raise ValueError("niveis_z must have at least one value")
+    paleta = dict(_CORES_FUNIL)
+    if cores is not None:
+        desconhecidas = set(cores) - set(paleta)
+        if desconhecidas:
+            raise ValueError(f"unknown keys in cores: {sorted(desconhecidas)}")
+        paleta.update(cores)
+
+    def _como_lista(valor) -> list:
+        if valor is None:
+            return []
+        if isinstance(valor, (str, bytes)) or not isinstance(valor, (Sequence, np.ndarray, pd.Index, pd.Series, set)):
+            return [valor]
+        return list(valor)
+
+    destaques = _como_lista(destaque)
+    a_rotular = _como_lista(rotular)
+    if (destaques or a_rotular) and coluna_rotulo is None:
+        raise ValueError("destaque and rotular need coluna_rotulo")
+
+    cols = [coluna_n, coluna_media] + ([coluna_rotulo] if coluna_rotulo else [])
+    dados = df[cols].dropna(subset=[coluna_n, coluna_media])
+    if coluna_rotulo:
+        presentes = set(dados[coluna_rotulo])
+        ausentes = [v for v in destaques + a_rotular if v not in presentes]
+        if ausentes:
+            raise ValueError(f"values not found in {coluna_rotulo}: {ausentes}")
+    visiveis = dados[dados[coluna_n] >= n_minimo]
+    if coluna_rotulo:
+        ocultos = [v for v in destaques + a_rotular if v not in set(visiveis[coluna_rotulo])]
+        if ocultos:
+            warnings.warn(
+                f"values hidden by n_minimo={n_minimo}: {ocultos}", stacklevel=2
+            )
+
+    fig, ax = _novo_ax(ax, figsize)
+    if escala_x == "log":
+        ax.set_xscale("log")
+
+    e_destaque = (
+        visiveis[coluna_rotulo].isin(destaques)
+        if coluna_rotulo and destaques
+        else pd.Series(False, index=visiveis.index)
+    )
+    base = visiveis[~e_destaque]
+    ax.scatter(
+        base[coluna_n],
+        base[coluna_media],
+        s=10,
+        color=paleta["pontos"],
+        alpha=0.45,
+        linewidths=0,
+        zorder=2,
+    )
+    realce = visiveis[e_destaque]
+    if len(realce):
+        ax.scatter(
+            realce[coluna_n],
+            realce[coluna_media],
+            s=40,
+            color=paleta["destaque"],
+            edgecolors=CORES["fundo"],
+            linewidths=1,
+            zorder=4,
+        )
+
+    ax.axhline(media_ref, color=paleta["referencia"], linewidth=1, zorder=1)
+
+    # Curves span well beyond the data so they cover the view of shared
+    # axes too. They are added with add_artist, which leaves dataLim alone,
+    # so they never drive autoscaling (scalex/scaley=False is not enough:
+    # a later shared-axes rescale would still read them from dataLim).
+    if len(visiveis):
+        n_lo = float(visiveis[coluna_n].min())
+        n_hi = float(visiveis[coluna_n].max())
+    else:
+        n_lo, n_hi = max(float(n_minimo), 1.0), max(float(n_minimo), 1.0) * 10
+    n_lo = max(n_lo, 1e-9)
+    if escala_x == "log":
+        grade = np.geomspace(n_lo / 10, n_hi * 10, 400)
+    else:
+        grade = np.linspace(n_lo / 10, n_hi * 1.5, 400)
+    handles = []
+    for i, z in enumerate(niveis_z):
+        inferior, superior = limites_funil(grade, media_ref, dp_ref, z)
+        estilo = _ESTILOS_NIVEIS[i % len(_ESTILOS_NIVEIS)]
+        for j, curva in enumerate((inferior, superior)):
+            linha = mpl.lines.Line2D(
+                grade,
+                curva,
+                color=paleta["limites"],
+                linewidth=1,
+                linestyle=estilo,
+                label=_rotulo_nivel(z),
+                zorder=1,
+            )
+            ax.add_artist(linha)
+            if j == 0:
+                handles.append(linha)
+
+    if escala_x == "log":
+        ax.xaxis.set_major_locator(LogLocator(base=10))
+        ax.xaxis.set_major_formatter(FuncFormatter(_formatador_log))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+        # Less than one decade in view: label 1-2-5 steps too.
+        if len(visiveis) and n_hi / n_lo < 10:
+            ax.xaxis.set_major_locator(LogLocator(base=10, subs=(1, 2, 5)))
+    else:
+        ax.xaxis.set_major_formatter(_formatador_eixo())
+    ax.yaxis.set_major_formatter(_formatador_eixo())
+    _numeros_mono(ax)
+
+    # Direct labels: highlighted values first, then the plain ones. Points
+    # in the right fifth of the view get the label on their left.
+    if coluna_rotulo:
+        ax.get_xlim()  # settle the view before reading positions
+        para_eixos = ax.transAxes.inverted()
+        rotulos = [(v, True) for v in destaques] + [
+            (v, False) for v in a_rotular if v not in destaques
+        ]
+        for valor, realcado in rotulos:
+            linhas = visiveis[visiveis[coluna_rotulo] == valor]
+            for _idx, linha in linhas.iterrows():
+                xy = (linha[coluna_n], linha[coluna_media])
+                a_direita = para_eixos.transform(ax.transData.transform(xy))[0] > 0.8
+                ax.annotate(
+                    str(valor),
+                    xy=xy,
+                    xytext=(-5 if a_direita else 5, 4),
+                    textcoords="offset points",
+                    ha="right" if a_direita else "left",
+                    va="bottom",
+                    fontsize=8.5,
+                    color=CORES["texto"] if realcado else CORES["texto_secundario"],
+                    fontweight="semibold" if realcado else "normal",
+                    zorder=5,
+                )
+
+    # Texts first: the legend sits inside the axes, so no row is reserved
+    # for it above them.
+    _textos(ax, titulo, subtitulo, rotulo_x, rotulo_y, nota)
+    if legenda:
+        ax.legend(
+            handles=handles,
+            loc="upper right",
+            fontsize=8,
+            handlelength=2.4,
+            labelcolor=CORES["texto_secundario"],
+            borderaxespad=0.4,
+        )
+    return fig, ax
 
 
 # ---------------------------------------------------------------------------
